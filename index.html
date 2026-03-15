@@ -5,69 +5,166 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tools · 小工具集</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"> -->
+  <!-- 引入 Inter 和一个带有科技感的字体 Space Grotesk -->
   <link href="/lib/inter-fonts.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+  
   <style>
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    .card:hover { transform: translateY(-2px); }
+    /* 全局重置与字体设定 */
+    body { 
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      background-color: #0f172a; /* 深 slate */
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(20, 184, 166, 0.08) 0%, transparent 40%), /* 清新薄荷光晕 */
+        radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 40%); /* 柔和现代紫 */
+    }
+
+    /* 字体混搭：标题用 Space Grotesk (街机/现代感)，正文用 Inter (商业/博客感) */
+    h1, h2, .font-display { font-family: 'Space Grotesk', sans-serif; }
+
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2dd4bf; } /* 悬停变清新绿 */
+
+    /* 街机光效 */
+    .neon-hover:hover {
+      box-shadow: 0 0 20px -5px rgba(45, 212, 191, 0.4); /* 清新绿光 */
+      border-color: #2dd4bf;
+      transform: translateY(-4px) scale(1.01);
+    }
+    
+    /* 玻璃拟态基础 */
+    .glass-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
   </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'fresh': '#2dd4bf', // 清新绿
+            'arcade-pink': '#f472b6', // 街机粉
+          }
+        }
+      }
+    }
+  </script>
 </head>
 
-<body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
+<body class="bg-slate-900 text-slate-100 min-h-screen selection:bg-fresh selection:text-slate-900 overflow-x-hidden">
 
-  <main class="max-w-4xl mx-auto px-4 py-12 sm:py-16">
-    <!-- 头部 -->
-    <header class="text-center mb-12">
-      <h1 id="site-title" class="text-3xl sm:text-4xl font-bold text-slate-100 tracking-tight">
-        Tools · 小工具集
+  <!-- 顶部导航 -->
+  <nav class="fixed top-0 w-full z-50 glass-card border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- 模拟街机状态灯 -->
+        <div class="flex gap-1.5">
+          <div class="w-2.5 h-2.5 rounded-full bg-fresh animate-pulse shadow-[0_0_8px_#2dd4bf]"></div>
+          <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+        </div>
+        <span class="font-display font-bold tracking-widest text-sm uppercase text-slate-400">System: Online</span>
+      </div>
+      <div class="text-xs font-mono text-slate-500">VER.2.0 // READY</div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-4 py-24 sm:py-32">
+    
+    <!-- 头部区域 -->
+    <header class="mb-20 relative">
+      <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-fresh to-transparent opacity-50 rounded-full"></div>
+      <h1 class="text-5xl sm:text-7xl font-bold text-white tracking-tight mb-4 leading-tight">
+        Tools<span class="text-fresh">.</span>Station
       </h1>
-      <p id="site-desc" class="mt-3 text-slate-400 text-lg">
-        前端小工具集合，按配置快速增删页面入口。
+      <p class="text-xl text-slate-400 max-w-2xl leading-relaxed">
+        前端小工具集合，按配置快速增删页面入口。<br>
+        <span class="text-sm text-slate-500 mt-2 block font-mono">// PRESS START TO CONTINUE ></span>
       </p>
     </header>
 
-    <!-- 页面列表：由 config/pages.json 驱动，JS 渲染 -->
-    <div id="pages-container" class="grid gap-4 sm:grid-cols-2">
-      <p class="col-span-full text-slate-500 text-center py-8">加载中…</p>
+    <!-- 
+      核心修复：
+      1. 使用 columns-1 sm:columns-2 lg:columns-3 替代 flex 布局。
+      2. 使用 gap-6 和 space-y-6 (或 mb-6) 控制间距。
+      这就是 Pinterest 风格的瀑布流布局，自动解决高度不一致导致的错位问题。
+    -->
+    <div id="pages-container" class="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+      <p class="col-span-full text-slate-500 text-center py-8 w-full animate-pulse">Loading Modules...</p>
     </div>
 
-    <!-- 加载失败时的提示 -->
-    <p id="load-error" class="hidden text-center text-amber-400/90 mt-6 text-sm">
-      无法加载 config/pages.json，请通过本地服务器访问（如 <code class="bg-slate-800 px-1 rounded">npx serve .</code>）。
+    <!-- 加载失败提示 -->
+    <p id="load-error" class="hidden text-center text-amber-400/90 mt-6 text-sm bg-amber-900/20 p-4 rounded border border-amber-500/30">
+      <span class="font-bold block mb-1">SYSTEM ERROR</span>
+      无法加载 config/pages.json，请通过本地服务器访问（如 <code class="bg-slate-800 px-1 rounded font-mono">npx serve .</code>）。
     </p>
+
   </main>
+
+  <!-- 页脚 -->
+  <footer class="border-t border-white/5 mt-20 py-10 text-center">
+    <p class="text-slate-600 text-sm font-mono">© 2023 TOOLS_STATION // DESIGNED BY MIX</p>
+  </footer>
 
   <script>
     (function () {
       const container = document.getElementById('pages-container');
-      const siteTitle = document.getElementById('site-title');
-      const siteDesc = document.getElementById('site-desc');
       const loadError = document.getElementById('load-error');
 
-      // 从 config/pages.json 拉取配置并渲染首页
-      fetch('config/pages.json')
+      // 生成随机但好看的标签颜色
+      const tags = ['bg-fresh/10 text-fresh', 'bg-purple-500/10 text-purple-400', 'bg-orange-500/10 text-orange-400'];
+
+      // do not cache, use random query string
+      fetch('config/pages.json?t=' + Date.now())
         .then(function (res) {
           if (!res.ok) throw new Error('config load failed');
           return res.json();
         })
         .then(function (data) {
-          if (data.siteTitle) siteTitle.textContent = data.siteTitle;
-          if (data.siteDescription) siteDesc.textContent = data.siteDescription;
-
+          if (data.siteTitle) document.title = data.siteTitle;
+          
           const pages = data.pages || [];
           if (pages.length === 0) {
-            container.innerHTML = '<p class="col-span-full text-slate-500 text-center py-8">暂无配置页面</p>';
+            container.innerHTML = '<p class="col-span-full text-slate-500 text-center py-8">No Data Found</p>';
             return;
           }
 
-          container.innerHTML = pages.map(function (p) {
-            const category = p.category ? '<span class="text-xs font-medium text-slate-500 uppercase tracking-wider">' + escapeHtml(p.category) + '</span>' : '';
+          // 修复：移除了手动计算宽度的 sizeClasses 逻辑
+          // 直接渲染卡片，CSS columns 会自动处理布局
+          container.innerHTML = pages.map(function (p, index) {
+            const tagClass = tags[index % tags.length];
+
             return (
-              '<a href="' + escapeHtml(p.path) + '" class="card block rounded-xl border border-slate-700/60 bg-slate-800/50 p-5 transition hover:border-slate-600 hover:bg-slate-800/80 focus:outline-none focus:ring-2 focus:ring-sky-500/50">' +
-              // (category ? '<div class="mb-2">' + category + '</div>' : '') +
-              '<h2 class="text-lg font-semibold text-slate-100">' + escapeHtml(p.title) + '</h2>' +
-              (p.description ? '<p class="mt-1 text-sm text-slate-400">' + escapeHtml(p.description) + '</p>' : '') +
+              // 添加 break-inside-avoid 防止卡片被切断
+              // 添加 mb-6 也就是 space-y-6 的效果，用于垂直分栏
+              '<a href="' + escapeHtml(p.path) + '" class="card group relative block break-inside-avoid mb-6 glass-card rounded-2xl p-6 transition-all duration-300 neon-hover overflow-hidden">' +
+                
+                /* 装饰性角落 */
+                '<div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-3xl -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>' +
+                
+                /* 内容区域 */
+                '<div class="relative z-10">' +
+                  /* 分类标签 */
+                  (p.category ? '<span class="inline-block px-2.5 py-0.5 rounded text-xs font-bold tracking-wider mb-3 ' + tagClass + '">' + escapeHtml(p.category) + '</span>' : '') +
+                  
+                  /* 标题 */
+                  '<h2 class="text-2xl font-bold text-slate-100 mb-2 group-hover:text-fresh transition-colors">' + escapeHtml(p.title) + '</h2>' +
+                  
+                  /* 描述 */
+                  (p.description ? '<p class="text-slate-400 text-sm leading-relaxed line-clamp-3 group-hover:text-slate-300">' + escapeHtml(p.description) + '</p>' : '') +
+                
+                  /* 底部箭头 */
+                  '<div class="mt-6 flex items-center text-xs font-mono text-slate-500 group-hover:translate-x-1 transition-transform">' +
+                    '<span>LAUNCH MODULE</span>' +
+                    '<svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>' +
+                  '</div>' +
+                '</div>' +
               '</a>'
             );
           }).join('');
@@ -85,7 +182,5 @@
       }
     })();
   </script>
-
 </body>
-
 </html>
