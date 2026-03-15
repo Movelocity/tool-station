@@ -1,0 +1,35 @@
+{
+  "siteTitle": "Tools · MinTools",
+  "siteDescription": "-",
+  "_comment": "新增页面：在 pages 数组中添加一项，id 唯一，path 为相对根目录的路径（如 'xxx/' 或 'xxx.html'），category 可选。",
+  "pages": [
+    {
+      "id": "jwt",
+      "title": "JWT Decoder",
+      "path": "jwt/",
+      "description": "解码与校验 JWT，查看 Header / Payload / Signature。",
+      "category": "开发"
+    },
+    {
+      "id": "rocket",
+      "title": "火箭发射概率模拟器",
+      "path": "rocket.html",
+      "description": "火箭动力值检测与发射概率模拟。",
+      "category": "趣味"
+    },
+    {
+      "id": "image-process",
+      "title": "图片画布处理",
+      "path": "image-process/",
+      "description": "图片画布处理工具，拖拽、缩放、裁剪。",
+      "category": "图片"
+    },
+    {
+      "id": "json-canvas",
+      "title": "多窗格 JSON 查看器",
+      "path": "json-canvas/",
+      "description": "多窗格 JSON 查看与编辑。",
+      "category": "开发"
+    }
+  ]
+}

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Viewer - 多窗格 JSON 查看器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #1e293b;
+    }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+    .code-font { font-family: 'Fira Code', 'Consolas', monospace; }
+
+    /* JSON 语法颜色 */
+    .json-key     { color: #7dd3fc; }
+    .json-string  { color: #86efac; }
+    .json-number  { color: #fcd34d; }
+    .json-boolean { color: #c4b5fd; }
+    .json-null    { color: #f87171; }
+
+    /* ── 无限画布 ── */
+    #canvas {
+      position: absolute;
+      top: 0; left: 0;
+      min-width: 100%;
+      min-height: 100%;
+      /* 点阵网格背景 */
+      background-image: radial-gradient(circle, #1e293b 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    #canvasViewport {
+      position: fixed;
+      top: 48px; left: 0; right: 0; bottom: 0;
+      overflow: auto;
+    }
+
+    /* ── 窗格 ── */
+    .json-pane {
+      position: absolute;
+      width: 560px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.35);
+      transition: box-shadow 0.15s;
+    }
+    .json-pane:hover,
+    .json-pane:focus-within {
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+
+    .pane-titlebar {
+      cursor: grab;
+      user-select: none;
+    }
+    .pane-titlebar:active { cursor: grabbing; }
+
+    .pane-title-input[readonly] {
+      pointer-events: none;
+      cursor: grab;
+      opacity: .85;
+    }
+    .pane-title-input:not([readonly]) {
+      background: #1e293b;
+      cursor: text;
+      pointer-events: auto;
+    }
+
+    /* 高亮模式由每个窗格自身的 class 控制 */
+    .pane-highlight-on .editor-textarea { display: none; }
+    .pane-highlight-on .highlight-view  { display: block; }
+    .highlight-view { display: none; }
+
+    .pane-content { min-height: 120px; overflow: auto; }
+
+    .editor-textarea {
+      width: 100%; height: 100%; min-height: 120px;
+      background: transparent; color: #e2e8f0;
+      border: none; outline: none; resize: none;
+      font-family: consolas monospace;
+      font-size: 15px; line-height: 1.6; padding: 12px;
+      white-space: pre-wrap; overflow-wrap: break-word;
+    }
+    .pane-nowrap .editor-textarea,
+    .pane-nowrap .highlight-view {
+      white-space: pre; overflow-wrap: normal;
+    }
+    .editor-textarea::placeholder { color: #64748b; }
+
+    .resize-handle {
+      height: 6px; cursor: ns-resize;
+      background: transparent; transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .resize-handle:hover, .resize-handle.active { background: #3b82f6; }
+
+    /* 窗格标题栏按钮 */
+    .pane-btn {
+      padding: 2px 8px; font-size: 12px; border-radius: 4px;
+      border: 1px solid #475569; background: transparent;
+      color: #94a3b8; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .pane-btn:hover { border-color: #64748b; color: #e2e8f0; }
+    .pane-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .pane-btn.danger { border-color: #7f1d1d; color: #f87171; }
+    .pane-btn.danger:hover { background: #7f1d1d; color: #fff; }
+    .pane-btn.format-btn { border-color: #047857; color: #34d399; }
+    .pane-btn.format-btn:hover { background: #047857; color: #fff; }
+
+    /* ── 顶部 Banner ── */
+    #topBar {
+      position: fixed; top: 0; left: 0; right: 0; height: 48px;
+      z-index: 9999;
+      background: rgba(15,23,42,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 12px;
+    }
+    #topBar h1 { font-size: 16px; font-weight: 600; color: #f1f5f9; white-space: nowrap; }
+
+    #paneIndex {
+      display: flex; gap: 6px; align-items: center;
+      overflow-x: auto; flex: 1; padding: 0 8px;
+      scrollbar-width: none;
+    }
+    #paneIndex::-webkit-scrollbar { display: none; }
+
+    .idx-chip {
+      flex-shrink: 0;
+      padding: 3px 10px; font-size: 12px; border-radius: 999px;
+      background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .idx-chip:hover { background: #334155; color: #e2e8f0; border-color: #475569; }
+    .idx-chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+    #addPaneBtn {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 12px; font-size: 13px; font-weight: 500;
+      background: #2563eb; color: #fff; border: none; border-radius: 6px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    #addPaneBtn:hover { background: #1d4ed8; }
+
+    /* Toast */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .toast { animation: fadeIn 0.2s ease-out; }
+  </style>
+</head>
+
+<body>
+  <!-- ── 顶部 Banner ── -->
+  <div id="topBar">
+    <h1>JSON Viewer</h1>
+    <div id="paneIndex"></div>
+    <button id="addPaneBtn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+          clip-rule="evenodd" />
+      </svg>
+      添加
+    </button>
+  </div>
+
+  <!-- ── 画布视口 ── -->
+  <div id="canvasViewport">
+    <div id="canvas"></div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="toast fixed bottom-6 right-6 z-[99999] px-4 py-3 rounded-lg shadow-lg hidden"
+    style="background: #1e293b; border: 1px solid #334155;">
+    <p id="toastMsg" class="text-sm"></p>
+  </div>
+
+  <!-- 外部模块 -->
+  <script src="js/json-v-storage.js"></script>
+  <script src="js/json-v-highlight.js"></script>
+  <script src="js/json-v-resize.js"></script>
+  <script src="js/json-v-drag.js"></script>
+
+  <script>
+    // ── 常量 & 状态 ──
+    const DEFAULT_WIDTH = 560;
+    const DEFAULT_HEIGHT = 280;
+    const PANE_GAP = 40;
+    let paneIdSeq = 0;
+    // 每个窗格的选区信息  paneId → { textarea, start, end, text }
+    const paneSelections = {};
+
+    function debounce(fn, ms) {
+      let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+    }
+
+    // ── 初始化 ──
+    document.addEventListener('DOMContentLoaded', async () => {
+      setupGlobalListeners();
+      const saved = await JsonVStorage.loadAll();
+      if (saved.length) {
+        // 按 zIndex 升序创建，这样最后创建的在最上层
+        saved.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+        saved.forEach(s => {
+          JsonVDrag.setBaseZ(s.zIndex || 0);
+          createPane(s);
+        });
+      } else {
+        createPane();
+      }
+      refreshIndex();
+    });
+
+    // ── 计算新窗格默认位置（瀑布式错开） ──
+    function nextPosition() {
+      const existing = document.querySelectorAll('.json-pane');
+      const count = existing.length;
+      const vp = document.getElementById('canvasViewport');
+      const scrollX = vp.scrollLeft;
+      const scrollY = vp.scrollTop;
+      const vpW = vp.clientWidth;
+      // 在可见区域中间偏左放置，每个新窗格向右下偏移
+      const baseX = scrollX + Math.max(40, (vpW - DEFAULT_WIDTH) / 2 - 100);
+      const baseY = scrollY + 40;
+      const offset = (count % 8) * PANE_GAP;
+      return { x: baseX + offset, y: baseY + offset };
+    }
+
+    // ── 创建窗格 ──
+    function createPane(data) {
+      paneIdSeq++;
+      const id    = data?.id          || `pane-${Date.now()}-${paneIdSeq}`;
+      const title = data?.title       || `Pane ${paneIdSeq}`;
+      const content     = data?.content     || '';
+      const highlightOn = data?.highlightOn || false;
+      const wordWrap    = data?.wordWrap !== false;   // 默认开启换行
+      const height = data?.height || DEFAULT_HEIGHT;
+      const width  = data?.width  || DEFAULT_WIDTH;
+      const pos    = (data?.x != null && data?.y != null) ? { x: data.x, y: data.y } : nextPosition();
+      const zIdx   = data?.zIndex || 0;
+
+      const pane = document.createElement('div');
+      pane.dataset.paneId = id;
+      pane.className = 'json-pane bg-slate-800 border border-slate-700';
+      pane.style.left = pos.x + 'px';
+      pane.style.top  = pos.y + 'px';
+      pane.style.width = width + 'px';
+      if (zIdx) pane.style.zIndex = zIdx;
+
+      pane.innerHTML = `
+        <div class="pane-titlebar flex items-center justify-between px-3 py-2 bg-slate-800/80 border-b border-slate-700 gap-2">
+          <input type="text" class="pane-title-input bg-transparent text-slate-200 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 min-w-0 flex-1" value="${esc(title)}" placeholder="标题..." readonly>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button class="pane-btn edit-title-btn" title="编辑标题">✎</button>
+            <button class="pane-btn format-btn hidden" title="格式化选中 JSON">格式化</button>
+            <button class="pane-btn hl-toggle${highlightOn ? ' active' : ''}" title="切换高亮模式">高亮</button>
+            <button class="pane-btn wrap-toggle active" title="切换自动换行">换行</button>
+            <button class="delete-pane-btn pane-btn danger" title="删除窗格">✕</button>
+          </div>
+        </div>
+        <div class="pane-content relative" style="height:${height}px">
+          <textarea class="editor-textarea code-font" placeholder="在此粘贴文本 / JSON …">${JsonVHighlight.escapeHtml(content)}</textarea>
+          <div class="highlight-view code-font text-sm p-3 whitespace-pre-wrap break-all"></div>
+        </div>
+        <div class="resize-handle"></div>
+      `;
+
+      document.getElementById('canvas').appendChild(pane);
+
+      // ── 查询子元素 ──
+      const titleBar     = pane.querySelector('.pane-titlebar');
+      const titleInput   = pane.querySelector('.pane-title-input');
+      const textarea     = pane.querySelector('.editor-textarea');
+      const hlToggle     = pane.querySelector('.hl-toggle');
+      const wrapToggle   = pane.querySelector('.wrap-toggle');
+      const formatBtn    = pane.querySelector('.format-btn');
+      const editTitleBtn = pane.querySelector('.edit-title-btn');
+      const deleteBtn    = pane.querySelector('.delete-pane-btn');
+      const paneContent  = pane.querySelector('.pane-content');
+      const resizeHandle = pane.querySelector('.resize-handle');
+
+      if (highlightOn) {
+        paneContent.classList.add('pane-highlight-on');
+        refreshHighlight(pane);
+      }
+      if (!wordWrap) {
+        paneContent.classList.add('pane-nowrap');
+        wrapToggle.classList.remove('active');
+      }
+
+      // ── 拖拽移动 ──
+      const drag = JsonVDrag.attach(pane, titleBar, {
+        canvas: document.getElementById('canvas'),
+        onMoved: () => scheduleSave(pane),
+        onFocus: () => { setActiveChip(id); scheduleSave(pane); },
+      });
+
+      // ── 拖拽调整高度 ──
+      JsonVResize.attach(resizeHandle, paneContent, {
+        minHeight: 120,
+        onEnd: () => scheduleSave(pane),
+      });
+
+      // ── 标题编辑开关 ──
+      const debouncedSave = debounce(() => scheduleSave(pane), 600);
+
+      function enterTitleEdit() {
+        titleInput.removeAttribute('readonly');
+        editTitleBtn.classList.add('active');
+        titleInput.focus();
+        titleInput.select();
+      }
+      function exitTitleEdit() {
+        titleInput.setAttribute('readonly', '');
+        editTitleBtn.classList.remove('active');
+      }
+
+      editTitleBtn.addEventListener('click', () => {
+        if (titleInput.hasAttribute('readonly')) {
+          enterTitleEdit();
+        } else {
+          exitTitleEdit();
+        }
+      });
+      titleInput.addEventListener('blur', () => { exitTitleEdit(); });
+      titleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') { exitTitleEdit(); e.preventDefault(); }
+      });
+      titleInput.addEventListener('input', () => { debouncedSave(); refreshIndex(); });
+
+      // ── 换行开关 ──
+      wrapToggle.addEventListener('click', () => {
+        const nowrap = paneContent.classList.toggle('pane-nowrap');
+        wrapToggle.classList.toggle('active', !nowrap);
+        scheduleSave(pane);
+      });
+
+      // ── 高亮开关 ──
+      hlToggle.addEventListener('click', () => {
+        const isOn = paneContent.classList.toggle('pane-highlight-on');
+        hlToggle.classList.toggle('active', isOn);
+        if (isOn) refreshHighlight(pane);
+        scheduleSave(pane);
+      });
+
+      // ── 格式化按钮 ──
+      formatBtn.addEventListener('click', () => {
+        const sel = paneSelections[id];
+        if (!sel) return;
+        try {
+          const formatted = JSON.stringify(JSON.parse(sel.text), null, 2);
+          textarea.value = textarea.value.substring(0, sel.start) + formatted + textarea.value.substring(sel.end);
+          textarea.focus();
+          textarea.setSelectionRange(sel.start, sel.start + formatted.length);
+          paneSelections[id] = null;
+          formatBtn.classList.add('hidden');
+          if (paneContent.classList.contains('pane-highlight-on')) refreshHighlight(pane);
+          scheduleSave(pane);
+          showToast('JSON 格式化成功', 'success');
+        } catch (err) {
+          showToast('无效的 JSON: ' + err.message, 'error');
+        }
+      });
+
+      // ── 文本选择 → 显示/隐藏格式化按钮 ──
+      function checkSelection() {
+        const s = textarea.selectionStart;
+        const e = textarea.selectionEnd;
+        const text = textarea.value.substring(s, e);
+        if (text.trim().length > 0) {
+          paneSelections[id] = { textarea, start: s, end: e, text };
+          formatBtn.classList.remove('hidden');
+        } else {
+          paneSelections[id] = null;
+          formatBtn.classList.add('hidden');
+        }
+      }
+      textarea.addEventListener('select', checkSelection);
+      textarea.addEventListener('mouseup', checkSelection);
+      textarea.addEventListener('keyup', checkSelection);
+      textarea.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (document.activeElement !== formatBtn) {
+            formatBtn.classList.add('hidden');
+          }
+        }, 150);
+      });
+
+      // ── 内容变化保存 ──
+      textarea.addEventListener('input', debouncedSave);
+
+      // ── 删除 ──
+      deleteBtn.addEventListener('click', async () => {
+        if (document.querySelectorAll('.json-pane').length > 1) {
+          pane.remove();
+          delete paneSelections[id];
+          await JsonVStorage.removePane(id);
+          refreshIndex();
+        } else {
+          showToast('至少保留一个窗格', 'error');
+        }
+      });
+
+      // 新窗格立即置顶
+      JsonVDrag.bringToFront(pane);
+      if (!data) scheduleSave(pane);
+      refreshIndex();
+      setActiveChip(id);
+    }
+
+    // ── 辅助 ──
+    function esc(s) { return JsonVHighlight.escapeHtml(s).replace(/"/g, '&quot;'); }
+
+    function refreshHighlight(pane) {
+      const textarea = pane.querySelector('.editor-textarea');
+      const view = pane.querySelector('.highlight-view');
+      view.innerHTML = JsonVHighlight.scanAndHighlight(textarea.value);
+    }
+
+    function scheduleSave(pane) {
+      const id = pane.dataset.paneId;
+      JsonVStorage.savePane(id, {
+        title:       pane.querySelector('.pane-title-input').value,
+        content:     pane.querySelector('.editor-textarea').value,
+        highlightOn: pane.querySelector('.pane-content').classList.contains('pane-highlight-on'),
+        wordWrap:    !pane.querySelector('.pane-content').classList.contains('pane-nowrap'),
+        height:      pane.querySelector('.pane-content').offsetHeight,
+        width:       pane.offsetWidth,
+        x:           parseInt(pane.style.left, 10) || 0,
+        y:           parseInt(pane.style.top, 10)  || 0,
+        zIndex:      parseInt(pane.style.zIndex, 10) || 0,
+      });
+    }
+
+    // ── 顶部索引 ──
+    function refreshIndex() {
+      const container = document.getElementById('paneIndex');
+      const panes = document.querySelectorAll('.json-pane');
+      container.innerHTML = '';
+      panes.forEach(p => {
+        const id = p.dataset.paneId;
+        const title = p.querySelector('.pane-title-input').value || 'Pane';
+        const chip = document.createElement('span');
+        chip.className = 'idx-chip';
+        chip.dataset.paneId = id;
+        chip.textContent = title;
+        chip.title = title;
+        chip.addEventListener('click', () => focusPane(id));
+        container.appendChild(chip);
+      });
+    }
+
+    function setActiveChip(id) {
+      document.querySelectorAll('.idx-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.paneId === id);
+      });
+    }
+
+    function focusPane(id) {
+      const pane = document.querySelector(`.json-pane[data-pane-id="${id}"]`);
+      if (!pane) return;
+      JsonVDrag.bringToFront(pane);
+      setActiveChip(id);
+      // 滚动画布使窗格居中可见
+      const vp = document.getElementById('canvasViewport');
+      const px = parseInt(pane.style.left, 10) || 0;
+      const py = parseInt(pane.style.top, 10) || 0;
+      vp.scrollTo({
+        left: px - (vp.clientWidth - pane.offsetWidth) / 2,
+        top:  py - (vp.clientHeight - pane.offsetHeight) / 2,
+        behavior: 'smooth',
+      });
+      scheduleSave(pane);
+    }
+
+    // ── 全局监听 ──
+    function setupGlobalListeners() {
+      document.getElementById('addPaneBtn').addEventListener('click', () => createPane());
+    }
+
+    // ── Toast ──
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toastMsg');
+      msg.textContent = message;
+      const colors = { success: '#22c55e', error: '#ef4444', info: '#e2e8f0' };
+      const borders = { success: '#22c55e', error: '#ef4444', info: '#334155' };
+      toast.style.borderColor = borders[type] || borders.info;
+      msg.style.color = colors[type] || colors.info;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+  </script>
+</body>
+
+</html>

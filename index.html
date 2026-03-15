@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools · 小工具集</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"> -->
+  <link href="/lib/inter-fonts.css" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .card:hover { transform: translateY(-2px); }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-12 sm:py-16">
+    <!-- 头部 -->
+    <header class="text-center mb-12">
+      <h1 id="site-title" class="text-3xl sm:text-4xl font-bold text-slate-100 tracking-tight">
+        Tools · 小工具集
+      </h1>
+      <p id="site-desc" class="mt-3 text-slate-400 text-lg">
+        前端小工具集合，按配置快速增删页面入口。
+      </p>
+    </header>
+
+    <!-- 页面列表：由 config/pages.json 驱动，JS 渲染 -->
+    <div id="pages-container" class="grid gap-4 sm:grid-cols-2">
+      <p class="col-span-full text-slate-500 text-center py-8">加载中…</p>
+    </div>
+
+    <!-- 加载失败时的提示 -->
+    <p id="load-error" class="hidden text-center text-amber-400/90 mt-6 text-sm">
+      无法加载 config/pages.json，请通过本地服务器访问（如 <code class="bg-slate-800 px-1 rounded">npx serve .</code>）。
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      const container = document.getElementById('pages-container');
+      const siteTitle = document.getElementById('site-title');
+      const siteDesc = document.getElementById('site-desc');
+      const loadError = document.getElementById('load-error');
+
+      // 从 config/pages.json 拉取配置并渲染首页
+      fetch('config/pages.json')
+        .then(function (res) {
+          if (!res.ok) throw new Error('config load failed');
+          return res.json();
+        })
+        .then(function (data) {
+          if (data.siteTitle) siteTitle.textContent = data.siteTitle;
+          if (data.siteDescription) siteDesc.textContent = data.siteDescription;
+
+          const pages = data.pages || [];
+          if (pages.length === 0) {
+            container.innerHTML = '<p class="col-span-full text-slate-500 text-center py-8">暂无配置页面</p>';
+            return;
+          }
+
+          container.innerHTML = pages.map(function (p) {
+            const category = p.category ? '<span class="text-xs font-medium text-slate-500 uppercase tracking-wider">' + escapeHtml(p.category) + '</span>' : '';
+            return (
+              '<a href="' + escapeHtml(p.path) + '" class="card block rounded-xl border border-slate-700/60 bg-slate-800/50 p-5 transition hover:border-slate-600 hover:bg-slate-800/80 focus:outline-none focus:ring-2 focus:ring-sky-500/50">' +
+              // (category ? '<div class="mb-2">' + category + '</div>' : '') +
+              '<h2 class="text-lg font-semibold text-slate-100">' + escapeHtml(p.title) + '</h2>' +
+              (p.description ? '<p class="mt-1 text-sm text-slate-400">' + escapeHtml(p.description) + '</p>' : '') +
+              '</a>'
+            );
+          }).join('');
+        })
+        .catch(function () {
+          container.innerHTML = '';
+          loadError.classList.remove('hidden');
+        });
+
+      function escapeHtml(s) {
+        if (s == null) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+    })();
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>火箭发射概率模拟器</title>
+  <script src="/lib/tailwind.js"></script>
+  <style>
+    /* 自定义一些过渡效果，让灯的闪烁更自然 */
+    .light-cell {
+      transition: all 0.1s ease-in-out;
+    }
+
+    /* 亮绿色 */
+    .light-on-green {
+      background-color: #22c55e;
+      /* green-500 */
+      box-shadow: 0 0 15px #22c55e;
+      transform: scale(1.1);
+    }
+
+    /* 亮红色 */
+    .light-on-red {
+      background-color: #ef4444;
+      /* red-500 */
+      box-shadow: 0 0 15px #ef4444;
+      transform: scale(1.1);
+    }
+
+    /* 暗绿色 (成功区) */
+    .light-dim-green {
+      background-color: #14532d;
+      /* green-900 */
+    }
+
+    /* 暗红色 (失败区) */
+    .light-dim-red {
+      background-color: #450a0a;
+      /* red-900 */
+    }
+
+    /* 等待/灰态 */
+    .light-off {
+      background-color: #374151;
+      /* gray-700 */
+    }
+
+    /* 按钮文字立体描边：上方细、下方粗，模拟光照从上方的立体感 */
+    .btn-text-stroke {
+      -webkit-text-stroke: 0.5px black;
+      paint-order: stroke fill;
+      text-shadow:
+        /* 上方细描边（受光面） */
+        0 -1px 0 black,
+        /* 左右轻微描边 */
+        -1px 0 0 black,
+        1px 0 0 black,
+        /* 下方粗描边（背光面，多层叠出厚度） */
+        0 1px 0 black,
+        0 2px 0 black,
+        0 3px 0 black;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-white font-sans min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- 主容器 -->
+  <div class="w-full max-w-4xl bg-blue-950/70 border border-gray-800 rounded-xl shadow-2xl p-6 relative overflow-hidden">
+
+    <!-- 顶部标题与总概率 -->
+    <div class="text-center border-b border-gray-800 pb-6">
+      <h1 class="text-3xl font-bold text-blue-400 tracking-wider mb-2 uppercase"
+        style="text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);">
+        火箭动力值检测
+      </h1>
+
+      <div id="status-msg" class="mt-4 h-8 text-xl font-bold text-yellow-400"></div>
+    </div>
+
+    <!-- 六层概率菜单 -->
+    <div id="layers-container" class="space-y-3">
+      <!-- 动态生成层 -->
+    </div>
+
+    <!-- 底部启动按钮 -->
+    <div class="mt-6 flex justify-between">
+      <div class="bg-gray-900/80 px-16 py-1 rounded-lg flex items-center gap-4">
+        <span class="text-gray-400 text-sm uppercase">成功率</span>
+        <div id="total-prob" class="text-3xl font-mono font-bold text-white">0.00%</div>
+      </div>
+      <button id="start-btn" onclick="startSimulation()"
+        class="btn-text-stroke bg-green-600 hover:bg-green-500 text-white text-xl font-bold py-4 px-12 rounded-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+        点 火 发 射
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // 配置
+    const LAYER_COUNT = 6;
+    const GRID_COUNT = 10; // 每层10个格子
+
+    // 初始状态：每层 50% 概率
+    let layersData = Array(LAYER_COUNT).fill(0.5);
+
+    // 动画状态锁
+    let isRunning = false;
+
+    // 初始化渲染
+    function init() {
+      renderLayers();
+      updateTotalProb();
+    }
+
+    // 更新综合概率显示
+    function updateTotalProb() {
+      // 总概率 = P1 * P2 * P3 * P4 * P5 * P6
+      let total = layersData.reduce((acc, val) => acc * val, 1);
+      document.getElementById('total-prob').innerText = (total * 100).toFixed(2) + '%';
+    }
+
+    // 渲染层
+    function renderLayers() {
+      const container = document.getElementById('layers-container');
+      container.innerHTML = '';
+
+      layersData.forEach((prob, index) => {
+        const layerDiv = document.createElement('div');
+        layerDiv.className = 'flex items-center justify-between bg-gray-900 p-3 rounded-xl';
+
+        // 层级标签
+        const label = document.createElement('div');
+        label.className = 'w-16 text-right mr-4 font-bold text-gray-400';
+        label.innerText = `层级 ${index + 1}`;
+
+        // 灯格容器
+        const gridContainer = document.createElement('div');
+        gridContainer.className = 'flex-grow grid grid-cols-10 gap-1 mx-2';
+        gridContainer.id = `layer-${index}-grid`;
+
+        // 生成10个格子
+        for (let i = 0; i < GRID_COUNT; i++) {
+          const cell = document.createElement('div');
+          cell.id = `layer-${index}-cell-${i}`;
+          cell.className = 'h-8 w-full rounded-md light-cell light-off'; // 初始全灰，等待JS填充颜色
+          gridContainer.appendChild(cell);
+        }
+
+        // 控制按钮区域
+        const controls = document.createElement('div');
+        controls.className = 'flex items-center space-x-2 ml-4';
+
+        // 减号按钮
+        const btnMinus = document.createElement('button');
+        btnMinus.innerText = '-';
+        btnMinus.className = 'w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold text-lg flex items-center justify-center transition-colors';
+        btnMinus.onclick = () => adjustProb(index, -0.1);
+
+        // 当前概率显示 (可选，这里用进度条逻辑，文字略过以免拥挤，或者显示数值)
+        const probDisplay = document.createElement('div');
+        probDisplay.className = 'w-12 text-center text-sm font-bold text-green-300';
+        probDisplay.innerText = prob.toFixed(1);
+
+        // 加号按钮
+        const btnPlus = document.createElement('button');
+        btnPlus.innerText = '+';
+        btnPlus.className = 'w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold text-lg flex items-center justify-center transition-colors';
+        btnPlus.onclick = () => adjustProb(index, 0.1);
+
+        controls.appendChild(btnMinus);
+        controls.appendChild(probDisplay);
+        controls.appendChild(btnPlus);
+
+        layerDiv.appendChild(label);
+        layerDiv.appendChild(gridContainer);
+        layerDiv.appendChild(controls);
+        container.appendChild(layerDiv);
+
+        // 渲染该层的静态颜色（成功后保持绿，失败后保持红，平时显示暗色）
+        updateLayerVisuals(index, prob);
+      });
+    }
+
+    // 调整概率
+    function adjustProb(layerIndex, delta) {
+      if (isRunning) return; // 运行中禁止修改
+
+      let newProb = layersData[layerIndex] + delta;
+      // 限制范围 0.1 ~ 1.0，step 0.1
+      if (newProb < 0.1) newProb = 0.1;
+      if (newProb > 1.0) newProb = 1.0;
+
+      // 修正浮点数精度问题 (e.g. 0.30000000004)
+      newProb = Math.round(newProb * 10) / 10;
+
+      layersData[layerIndex] = newProb;
+
+      // 重新渲染该层的静态颜色
+      updateLayerVisuals(layerIndex, newProb);
+
+      // 更新文本显示
+      // 找到对应的DOM元素更新概率文字
+      const controls = document.querySelectorAll('#layers-container > div')[layerIndex];
+      controls.querySelector('.text-green-300').innerText = newProb.toFixed(1);
+
+      updateTotalProb();
+    }
+
+    // 更新每层格子的颜色（基础状态）
+    function updateLayerVisuals(layerIndex, prob, specialIndex = -1, state = 'static') {
+      // 成功的格子数 (0-10)
+      const successCount = Math.round(prob * GRID_COUNT);
+
+      for (let i = 0; i < GRID_COUNT; i++) {
+        const cell = document.getElementById(`layer-${layerIndex}-cell-${i}`);
+
+        // 清除所有特殊状态类
+        cell.classList.remove('light-on-green', 'light-on-red', 'light-dim-green', 'light-dim-red', 'light-off');
+
+        const isLeftSide = i < successCount;
+
+        if (state === 'static') {
+          // 静态模式下：左边是暗绿，右边是暗红
+          if (isLeftSide) {
+            cell.classList.add('light-dim-green');
+          } else {
+            cell.classList.add('light-dim-red');
+          }
+        } else if (state === 'running') {
+          // 动画模式：除了当前跑马灯位置是亮的，其他恢复静态
+          if (i === specialIndex) {
+            // 不管左右，亮起来
+            if (isLeftSide) cell.classList.add('light-on-green');
+            else cell.classList.add('light-on-red');
+          } else {
+            // 恢复暗色
+            if (isLeftSide) cell.classList.add('light-dim-green');
+            else cell.classList.add('light-dim-red');
+          }
+        } else if (state === 'finished') {
+          // 结束模式：只保留最右边那个结果是高亮，其他都暗掉
+          // 实际上因为我们是逐层处理的，上一层已经结束。
+          // 这里主要用于标记最后一层的结果。
+          if (i === specialIndex) {
+            if (isLeftSide) cell.classList.add('light-on-green');
+            else cell.classList.add('light-on-red');
+          } else {
+            // 如果是成功的层，保持左边亮；如果失败，保持结果亮
+            // 简化处理：如果不是当前激活的层，保持暗色或者记忆状态？
+            // 简单处理：运行结束后，除了最后一层的结果，其他恢复暗色
+            if (isLeftSide) cell.classList.add('light-dim-green');
+            else cell.classList.add('light-dim-red');
+          }
+        }
+      }
+    }
+
+    // 核心动画逻辑
+    async function startSimulation() {
+      if (isRunning) return;
+      isRunning = true;
+
+      const startBtn = document.getElementById('start-btn');
+      const statusMsg = document.getElementById('status-msg');
+
+      startBtn.disabled = true;
+      statusMsg.innerText = "系统自检中...";
+      statusMsg.className = "mt-4 h-8 text-xl font-bold text-blue-400 animate-pulse";
+
+      // 启动时清除之前亮起的灯，所有层恢复为静态暗色
+      for (let i = 0; i < LAYER_COUNT; i++) {
+        updateLayerVisuals(i, layersData[i], -1, 'static');
+      }
+
+      // 等待一小会儿让用户看到按钮变化
+      await new Promise(r => setTimeout(r, 500));
+
+      let failed = false;
+
+      for (let i = 0; i < LAYER_COUNT; i++) {
+        statusMsg.innerText = `检测引擎层级 ${i + 1}...`;
+
+        const prob = layersData[i];
+        const successCount = Math.round(prob * GRID_COUNT);
+
+        // 决定结果：根据概率随机一个数
+        // 如果随机数 < successCount，则成功（停在左边绿色区域）
+        // 否则失败（停在右边红色区域）
+        const randomVal = Math.random(); // 0.0 - 1.0
+        const isLayerSuccess = randomVal < prob;
+
+        // 计算停下的格子索引
+        let finalIndex;
+        if (isLayerSuccess) {
+          // 成功的索引必须在 0 到 successCount-1 之间
+          finalIndex = Math.floor(Math.random() * successCount);
+        } else {
+          // 失败的索引必须在 successCount 到 9 之间
+          finalIndex = successCount + Math.floor(Math.random() * (GRID_COUNT - successCount));
+        }
+
+        // 跑马灯动画
+        await runMarquee(i, finalIndex);
+
+        // 检查结果
+        if (!isLayerSuccess) {
+          failed = true;
+          statusMsg.innerText = `层级 ${i + 1} 发射失败！`;
+          statusMsg.className = "mt-4 h-8 text-2xl font-bold text-red-500";
+          // 标记失败格子
+          const cell = document.getElementById(`layer-${i}-cell-${finalIndex}`);
+          cell.classList.remove('light-on-red'); // 先去掉
+          void cell.offsetWidth; // trigger reflow
+          cell.classList.add('light-on-red');
+
+          // 停止循环
+          break;
+        } else {
+          // 成功：保持该格子亮绿色
+          const cell = document.getElementById(`layer-${i}-cell-${finalIndex}`);
+          cell.classList.remove('light-on-green');
+          void cell.offsetWidth;
+          cell.classList.add('light-on-green');
+
+          // 延迟一下再进下一层
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      if (!failed) {
+        statusMsg.innerText = "🚀 火箭发射成功！冲鸭！";
+        statusMsg.className = "mt-4 h-8 text-2xl font-bold text-green-400 animate-bounce";
+      }
+
+      isRunning = false;
+      startBtn.disabled = false;
+    }
+
+    // 跑马灯动画函数
+    function runMarquee(layerIndex, targetIndex) {
+      return new Promise(resolve => {
+        let currentIndex = 0;
+        let speed = 50; // 初始速度 ms
+        let rounds = 0;
+        const maxRounds = 2; // 跑几圈
+
+        const timer = setInterval(() => {
+          // 视觉更新：当前格子亮，上一个格子暗
+          updateLayerVisuals(layerIndex, layersData[layerIndex], currentIndex, 'running');
+
+          currentIndex++;
+
+          // 跑完一圈减速
+          if (currentIndex > GRID_COUNT) {
+            currentIndex = 0;
+            rounds++;
+            if (rounds >= maxRounds) {
+              // 开始逼近目标，减速
+              speed += 30;
+            }
+          }
+
+          // 停止条件：到达目标格子 (为了效果，我们让它刚好停在target)
+          // 逻辑修正：上面的循环只是跑马灯，这里我们需要控制它何时停下
+          // 简化逻辑：我们只需要跑几圈，然后设置currentIndex为目标，渲染一次，然后resolve
+
+          // 重新设计这个定时器逻辑，为了简单的“跑过去停在目标位”：
+          // 不使用这个复杂的定时器逻辑，改用简单的延时序列
+          clearInterval(timer);
+
+          // 简单的逐个点亮动画
+          let step = 0;
+          const totalSteps = 15 + targetIndex; // 跑15次 + 目标位置
+
+          const simpleTimer = setInterval(() => {
+            const idx = step % GRID_COUNT;
+            updateLayerVisuals(layerIndex, layersData[layerIndex], idx, 'running');
+
+            step++;
+
+            // 当步数足够，并且到达目标索引时停止
+            if (step > 15 && idx === targetIndex) {
+              clearInterval(simpleTimer);
+              resolve();
+            }
+          }, 60); // 速度
+
+        }, speed);
+      });
+    }
+
+    // 启动
+    init();
+
+  </script>
+</body>
+
+</html>

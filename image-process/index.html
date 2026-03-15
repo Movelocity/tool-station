@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Process - 图片画布处理工具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #1e293b;
+    }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+    /* ── 无限画布 ── */
+    #canvas {
+      position: absolute;
+      top: 0; left: 0;
+      min-width: 100%;
+      min-height: 100%;
+      background-image: radial-gradient(circle, #1e293b 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    #canvasViewport {
+      position: fixed;
+      top: 48px; left: 0; bottom: 0;
+      right: 0;
+      overflow: auto;
+      transition: right 0.25s ease;
+    }
+    #canvasViewport.panel-open {
+      right: 320px;
+    }
+
+    /* ── 图片卡片 ── */
+    .img-card {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: visible;
+      box-shadow: 0 4px 24px rgba(0,0,0,.35);
+      transition: box-shadow 0.15s;
+      background: #1e293b;
+      border: 2px solid transparent;
+    }
+    .img-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .img-card.selected {
+      /* border-color: #3b82f6; */
+      box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 8px 32px rgba(0,0,0,.5);
+    }
+
+    .card-titlebar {
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: rgba(30,41,59,.92);
+      border-bottom: 1px solid #334155;
+      border-radius: 8px 8px 0 0;
+      gap: 6px;
+      min-height: 36px;
+    }
+    .card-titlebar:active { cursor: grabbing; }
+
+    .card-title {
+      font-size: 13px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-body {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-conic-gradient(#1a1a2e 0% 25%, #0f172a 0% 50%) 0 0 / 16px 16px;
+      border-radius: 0 0 8px 8px;
+      cursor: grab;
+    }
+    .card-body:active { cursor: grabbing; }
+    .card-body img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* 四角 + 四边缩放手柄 */
+    .resize-handle {
+      position: absolute;
+      z-index: 10;
+    }
+    .resize-handle.corner {
+      width: 16px; height: 16px;
+    }
+    .resize-handle.edge {
+      background: transparent;
+    }
+    .resize-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+    .resize-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
+    .resize-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+    .resize-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
+    .resize-handle.n  { top: -4px; left: 10px; right: 10px; height: 8px; cursor: n-resize; }
+    .resize-handle.s  { bottom: -4px; left: 10px; right: 10px; height: 8px; cursor: s-resize; }
+    .resize-handle.w  { left: -4px; top: 10px; bottom: 10px; width: 8px; cursor: w-resize; }
+    .resize-handle.e  { right: -4px; top: 10px; bottom: 10px; width: 8px; cursor: e-resize; }
+
+    .img-card:not(.selected) .resize-handle { display: none; }
+
+    .card-btn {
+      padding: 2px 6px; font-size: 11px; border-radius: 4px;
+      border: 1px solid #475569; background: transparent;
+      color: #94a3b8; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .card-btn:hover { border-color: #64748b; color: #e2e8f0; }
+    .card-btn.danger { border-color: #7f1d1d; color: #f87171; }
+    .card-btn.danger:hover { background: #7f1d1d; color: #fff; }
+
+    /* ── 顶部 Banner ── */
+    #topBar {
+      position: fixed; top: 0; left: 0; right: 0; height: 48px;
+      z-index: 9999;
+      background: rgba(15,23,42,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 12px;
+    }
+    #topBar h1 { font-size: 16px; font-weight: 600; color: #f1f5f9; white-space: nowrap; }
+
+    #imgIndex {
+      display: flex; gap: 6px; align-items: center;
+      overflow-x: auto; flex: 1; padding: 0 8px;
+      scrollbar-width: none;
+    }
+    #imgIndex::-webkit-scrollbar { display: none; }
+
+    .idx-chip {
+      flex-shrink: 0;
+      padding: 3px 10px; font-size: 12px; border-radius: 999px;
+      background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .idx-chip:hover { background: #334155; color: #e2e8f0; border-color: #475569; }
+    .idx-chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+    #addImgBtn {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 12px; font-size: 13px; font-weight: 500;
+      background: #2563eb; color: #fff; border: none; border-radius: 6px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    #addImgBtn:hover { background: #1d4ed8; }
+
+    /* ── 右侧信息面板 ── */
+    #infoPanel {
+      position: fixed;
+      top: 48px; right: 0; bottom: 0;
+      width: 320px;
+      background: rgba(15,23,42,.96);
+      backdrop-filter: blur(12px);
+      border-left: 1px solid #1e293b;
+      z-index: 9998;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    #infoPanel.open {
+      transform: translateX(0);
+    }
+
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .panel-section:last-child { border-bottom: none; }
+
+    .panel-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .panel-input {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .panel-input:focus { border-color: #3b82f6; }
+
+    .panel-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .panel-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .panel-field label {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .link-icon {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; cursor: pointer;
+      border: 1px solid #334155;
+      color: #64748b;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      margin-top: 18px;
+    }
+    .link-icon:hover { border-color: #475569; color: #e2e8f0; }
+    .link-icon.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+    .download-btn {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .download-btn:hover { background: #1d4ed8; }
+
+    .panel-close-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .panel-close-btn:hover { border-color: #64748b; color: #e2e8f0; }
+
+    .panel-preview {
+      width: 100%;
+      aspect-ratio: 16/10;
+      border-radius: 6px;
+      overflow: hidden;
+      background: repeating-conic-gradient(#1a1a2e 0% 25%, #0f172a 0% 50%) 0 0 / 12px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .panel-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* quality slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .format-option {
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .format-option:hover { border-color: #475569; color: #e2e8f0; }
+    .format-option.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+    /* ── 拖放提示 ── */
+    .drop-overlay {
+      position: fixed;
+      top: 48px; left: 0; right: 0; bottom: 0;
+      background: rgba(15,23,42,.85);
+      z-index: 9990;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .drop-overlay.visible {
+      display: flex;
+    }
+    .drop-overlay-inner {
+      padding: 40px 60px;
+      border: 3px dashed #3b82f6;
+      border-radius: 16px;
+      color: #7dd3fc;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    /* Toast */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .toast { animation: fadeIn 0.2s ease-out; }
+
+    .dim-display {
+      font-size: 11px;
+      color: #64748b;
+      padding: 2px 6px;
+      background: rgba(30,41,59,.6);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ── 顶部 Banner ── -->
+  <div id="topBar">
+    <h1>Image Process</h1>
+    <div id="imgIndex"></div>
+    <button id="addImgBtn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+          clip-rule="evenodd" />
+      </svg>
+      添加图片
+    </button>
+    <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  </div>
+
+  <!-- ── 画布视口 ── -->
+  <div id="canvasViewport">
+    <div id="canvas"></div>
+  </div>
+
+  <!-- ── 拖放提示 ── -->
+  <div id="dropOverlay" class="drop-overlay">
+    <div class="drop-overlay-inner">释放以添加图片</div>
+  </div>
+
+  <!-- ── 右侧信息面板 ── -->
+  <div id="infoPanel">
+    <button class="panel-close-btn" id="panelCloseBtn">✕</button>
+
+    <div class="panel-section">
+      <div class="panel-label">预览</div>
+      <div class="panel-preview">
+        <img id="panelPreview" src="" alt="preview">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">图片信息</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <span style="color:#64748b;">文件名</span>
+          <span id="panelFileName" style="color:#e2e8f0;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <span style="color:#64748b;">原始尺寸</span>
+          <span id="panelOrigSize" style="color:#e2e8f0;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <span style="color:#64748b;">文件大小</span>
+          <span id="panelFileSize" style="color:#e2e8f0;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <span style="color:#64748b;">类型</span>
+          <span id="panelMimeType" style="color:#e2e8f0;">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">导出尺寸</div>
+      <div class="panel-row">
+        <div class="panel-field">
+          <label>宽度 (px)</label>
+          <input type="number" class="panel-input" id="panelWidth" min="1" step="1">
+        </div>
+        <div class="link-icon active" id="lockAspect" title="锁定宽高比">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0110 0v4"></path>
+          </svg>
+        </div>
+        <div class="panel-field">
+          <label>高度 (px)</label>
+          <input type="number" class="panel-input" id="panelHeight" min="1" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">导出格式</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="format-option active" data-format="png">PNG</button>
+        <button class="format-option" data-format="jpeg">JPEG</button>
+        <button class="format-option" data-format="webp">WebP</button>
+        <button class="format-option" data-format="ico">ICO</button>
+      </div>
+    </div>
+
+    <div class="panel-section" id="qualitySection" style="display:none;">
+      <div class="panel-label">质量 <span id="qualityValue" style="color:#e2e8f0;">92</span>%</div>
+      <input type="range" id="qualitySlider" min="10" max="100" value="92" step="1">
+    </div>
+
+    <div class="panel-section">
+      <button class="download-btn" id="downloadBtn">
+        <span style="margin-right:6px;">⬇</span> 导出并下载
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="toast fixed bottom-6 right-6 z-[99999] px-4 py-3 rounded-lg shadow-lg hidden"
+    style="background: #1e293b; border: 1px solid #334155;">
+    <p id="toastMsg" class="text-sm"></p>
+  </div>
+
+  <script>
+    // ── 状态 ──
+    const state = {
+      cards: new Map(),   // id → { id, name, file, origW, origH, fileSize, mimeType, dataUrl, x, y, w, h, zIndex }
+      selectedId: null,
+      idSeq: 0,
+      topZ: 100,
+      aspectLocked: true,
+      exportFormat: 'png',
+      exportQuality: 0.92,
+    };
+
+    const canvas = document.getElementById('canvas');
+    const viewport = document.getElementById('canvasViewport');
+    const fileInput = document.getElementById('fileInput');
+    const dropOverlay = document.getElementById('dropOverlay');
+    const infoPanel = document.getElementById('infoPanel');
+
+    // ── 初始化 ──
+    document.getElementById('addImgBtn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+      fileInput.value = '';
+    });
+
+    // 画布点击取消选中
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.target === canvas) deselectAll();
+    });
+
+    // ── 全局拖放 ──
+    let dragCounter = 0;
+    document.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      dropOverlay.classList.add('visible');
+    });
+    document.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        dropOverlay.classList.remove('visible');
+      }
+    });
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      dropOverlay.classList.remove('visible');
+      const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+      if (files.length) handleFiles(files);
+    });
+
+    // ── 处理文件 ──
+    function handleFiles(files) {
+      [...files].forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            createImageCard({
+              name: file.name,
+              file: file,
+              origW: img.naturalWidth,
+              origH: img.naturalHeight,
+              fileSize: file.size,
+              mimeType: file.type,
+              dataUrl: e.target.result,
+            });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ── 归一化渲染尺寸 ──
+    function normalizeSize(origW, origH) {
+      const vpW = viewport.clientWidth;
+      const vpH = viewport.clientHeight;
+      const maxRenderW = Math.min(vpW * 0.45, 600);
+      const maxRenderH = Math.min(vpH * 0.55, 500);
+      const minRender = 120;
+
+      let w = origW;
+      let h = origH;
+
+      if (w > maxRenderW || h > maxRenderH) {
+        const scale = Math.min(maxRenderW / w, maxRenderH / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      if (w < minRender && h < minRender) {
+        const scale = minRender / Math.min(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      return { w, h };
+    }
+
+    // ── 计算新卡片位置（瀑布式错开） ──
+    function nextPosition() {
+      const count = state.cards.size;
+      const scrollX = viewport.scrollLeft;
+      const scrollY = viewport.scrollTop;
+      const vpW = viewport.clientWidth;
+      const baseX = scrollX + Math.max(40, (vpW - 400) / 2 - 100);
+      const baseY = scrollY + 40;
+      const offset = (count % 8) * 40;
+      return { x: baseX + offset, y: baseY + offset };
+    }
+
+    // ── 创建图片卡片 ──
+    function createImageCard(imgData) {
+      state.idSeq++;
+      const id = `img-${Date.now()}-${state.idSeq}`;
+      const { w, h } = normalizeSize(imgData.origW, imgData.origH);
+      const pos = nextPosition();
+
+      const cardData = {
+        id,
+        name: imgData.name,
+        file: imgData.file,
+        origW: imgData.origW,
+        origH: imgData.origH,
+        fileSize: imgData.fileSize,
+        mimeType: imgData.mimeType,
+        dataUrl: imgData.dataUrl,
+        x: pos.x,
+        y: pos.y,
+        w,
+        h,
+        zIndex: 0,
+      };
+      state.cards.set(id, cardData);
+
+      const card = document.createElement('div');
+      card.className = 'img-card';
+      card.dataset.cardId = id;
+      card.style.left = pos.x + 'px';
+      card.style.top = pos.y + 'px';
+      card.style.width = w + 'px';
+
+      const titleBarH = 36;
+      card.innerHTML = `
+        <div class="card-titlebar">
+          <span class="card-title" title="${escHtml(imgData.name)}">${escHtml(imgData.name)}</span>
+          <span class="dim-display">${imgData.origW}×${imgData.origH}</span>
+          <button class="card-btn danger delete-card-btn" title="删除">✕</button>
+        </div>
+        <div class="card-body" style="height:${h}px;">
+          <img src="${imgData.dataUrl}" alt="${escHtml(imgData.name)}" draggable="false">
+        </div>
+        <!-- resize handles -->
+        <div class="resize-handle corner nw" data-dir="nw"></div>
+        <div class="resize-handle corner ne" data-dir="ne"></div>
+        <div class="resize-handle corner sw" data-dir="sw"></div>
+        <div class="resize-handle corner se" data-dir="se"></div>
+        <div class="resize-handle edge n" data-dir="n"></div>
+        <div class="resize-handle edge s" data-dir="s"></div>
+        <div class="resize-handle edge w" data-dir="w"></div>
+        <div class="resize-handle edge e" data-dir="e"></div>
+      `;
+
+      canvas.appendChild(card);
+
+      const titleBar = card.querySelector('.card-titlebar');
+      const cardBody = card.querySelector('.card-body');
+      const deleteBtn = card.querySelector('.delete-card-btn');
+
+      // 拖拽移动（整个卡片可拖，点击 vs 拖拽用距离阈值区分）
+      attachDrag(card, cardData);
+
+      // 缩放
+      card.querySelectorAll('.resize-handle').forEach(handle => {
+        attachResize(card, handle, cardBody, cardData);
+      });
+
+      // 删除
+      deleteBtn.addEventListener('click', () => {
+        card.remove();
+        state.cards.delete(id);
+        if (state.selectedId === id) {
+          state.selectedId = null;
+          closePanel();
+        }
+        refreshIndex();
+      });
+
+      bringToFront(card, cardData);
+      selectCard(id);
+      refreshIndex();
+      expandCanvas(card);
+    }
+
+    // ── Z-order 管理 ──
+    function bringToFront(cardEl, cardData) {
+      state.topZ++;
+      cardEl.style.zIndex = state.topZ;
+      cardData.zIndex = state.topZ;
+    }
+
+    // ── 选中 / 取消选中 ──
+    function selectCard(id) {
+      document.querySelectorAll('.img-card').forEach(c => c.classList.remove('selected'));
+      const card = document.querySelector(`.img-card[data-card-id="${id}"]`);
+      if (card) card.classList.add('selected');
+      state.selectedId = id;
+      setActiveChip(id);
+      openPanel(id);
+    }
+
+    function deselectAll() {
+      document.querySelectorAll('.img-card').forEach(c => c.classList.remove('selected'));
+      state.selectedId = null;
+      setActiveChip(null);
+      closePanel();
+    }
+
+    // ── 拖拽移动（整个卡片区域可拖，距离阈值区分点击与拖拽） ──
+    const CLICK_THRESHOLD = 5;
+
+    function attachDrag(cardEl, cardData) {
+      let startX, startY, startLeft, startTop, dragging = false, peakDist = 0;
+
+      cardEl.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button') || e.target.closest('.resize-handle')) return;
+        e.preventDefault();
+        dragging = true;
+        peakDist = 0;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = parseInt(cardEl.style.left, 10) || 0;
+        startTop = parseInt(cardEl.style.top, 10) || 0;
+
+        bringToFront(cardEl, cardData);
+        setActiveChip(cardData.id);
+
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      function onMove(e) {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        peakDist = Math.max(peakDist, Math.abs(dx) + Math.abs(dy));
+        cardEl.style.left = Math.max(0, startLeft + dx) + 'px';
+        cardEl.style.top = Math.max(0, startTop + dy) + 'px';
+        expandCanvas(cardEl);
+      }
+
+      function onUp() {
+        if (!dragging) return;
+        dragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        expandCanvas(cardEl);
+
+        cardData.x = parseInt(cardEl.style.left, 10) || 0;
+        cardData.y = parseInt(cardEl.style.top, 10) || 0;
+
+        // 移动距离小于阈值 → 视为点击选中
+        if (peakDist < CLICK_THRESHOLD) {
+          selectCard(cardData.id);
+        }
+      }
+    }
+
+    // ── 缩放（支持8个方向，保持宽高比可选） ──
+    function attachResize(cardEl, handle, bodyEl, cardData) {
+      let startX, startY, startW, startH, startLeft, startTop, dir;
+      const MIN_SIZE = 80;
+      const TITLEBAR_H = 36;
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dir = handle.dataset.dir;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = cardEl.offsetWidth;
+        startH = bodyEl.offsetHeight;
+        startLeft = parseInt(cardEl.style.left, 10) || 0;
+        startTop = parseInt(cardEl.style.top, 10) || 0;
+
+        document.body.style.cursor = window.getComputedStyle(handle).cursor;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      function onMove(e) {
+        let dx = e.clientX - startX;
+        let dy = e.clientY - startY;
+        let newW = startW;
+        let newH = startH;
+        let newLeft = startLeft;
+        let newTop = startTop;
+        const aspect = cardData.origW / cardData.origH;
+
+        if (dir.includes('e')) newW = startW + dx;
+        if (dir.includes('w')) { newW = startW - dx; newLeft = startLeft + dx; }
+        if (dir.includes('s')) newH = startH + dy;
+        if (dir.includes('n')) { newH = startH - dy; newTop = startTop + dy; }
+
+        // 角落：锁定宽高比
+        if (dir.length === 2) {
+          const candidateH = newW / aspect;
+          if (dir.includes('n')) {
+            newTop = startTop + (startH - candidateH);
+          }
+          newH = candidateH;
+        }
+
+        // 限制最小尺寸
+        if (newW < MIN_SIZE) {
+          if (dir.includes('w')) newLeft = startLeft + startW - MIN_SIZE;
+          newW = MIN_SIZE;
+        }
+        if (newH < MIN_SIZE) {
+          if (dir.includes('n')) newTop = startTop + startH - MIN_SIZE;
+          newH = MIN_SIZE;
+        }
+
+        newLeft = Math.max(0, newLeft);
+        newTop = Math.max(0, newTop);
+
+        cardEl.style.width = newW + 'px';
+        cardEl.style.left = newLeft + 'px';
+        cardEl.style.top = newTop + 'px';
+        bodyEl.style.height = newH + 'px';
+
+        expandCanvas(cardEl);
+      }
+
+      function onUp() {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+
+        cardData.w = cardEl.offsetWidth;
+        cardData.h = bodyEl.offsetHeight;
+        cardData.x = parseInt(cardEl.style.left, 10) || 0;
+        cardData.y = parseInt(cardEl.style.top, 10) || 0;
+
+        if (state.selectedId === cardData.id) {
+          updatePanelFields(cardData);
+        }
+        expandCanvas(cardEl);
+      }
+    }
+
+    // ── 画布自动扩展 ──
+    function expandCanvas(cardEl) {
+      const right = (parseInt(cardEl.style.left, 10) || 0) + cardEl.offsetWidth + 80;
+      const bottom = (parseInt(cardEl.style.top, 10) || 0) + cardEl.offsetHeight + 80;
+      if (right > canvas.scrollWidth) canvas.style.width = right + 'px';
+      if (bottom > canvas.offsetHeight) canvas.style.minHeight = bottom + 'px';
+    }
+
+    // ── 顶部索引 ──
+    function refreshIndex() {
+      const container = document.getElementById('imgIndex');
+      container.innerHTML = '';
+      state.cards.forEach((data, id) => {
+        const chip = document.createElement('span');
+        chip.className = 'idx-chip';
+        chip.dataset.cardId = id;
+        chip.textContent = data.name;
+        chip.title = data.name;
+        chip.addEventListener('click', () => focusCard(id));
+        container.appendChild(chip);
+      });
+      setActiveChip(state.selectedId);
+    }
+
+    function setActiveChip(id) {
+      document.querySelectorAll('.idx-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.cardId === id);
+      });
+    }
+
+    function focusCard(id) {
+      const card = document.querySelector(`.img-card[data-card-id="${id}"]`);
+      if (!card) return;
+      const data = state.cards.get(id);
+      if (data) bringToFront(card, data);
+      selectCard(id);
+      const px = parseInt(card.style.left, 10) || 0;
+      const py = parseInt(card.style.top, 10) || 0;
+      viewport.scrollTo({
+        left: px - (viewport.clientWidth - card.offsetWidth) / 2,
+        top: py - (viewport.clientHeight - card.offsetHeight) / 2,
+        behavior: 'smooth',
+      });
+    }
+
+    // ── 右侧信息面板 ──
+    function openPanel(id) {
+      const data = state.cards.get(id);
+      if (!data) return;
+
+      document.getElementById('panelPreview').src = data.dataUrl;
+      document.getElementById('panelFileName').textContent = data.name;
+      document.getElementById('panelOrigSize').textContent = `${data.origW} × ${data.origH}`;
+      document.getElementById('panelFileSize').textContent = formatSize(data.fileSize);
+      document.getElementById('panelMimeType').textContent = data.mimeType;
+
+      updatePanelFields(data);
+
+      infoPanel.classList.add('open');
+      viewport.classList.add('panel-open');
+    }
+
+    function updatePanelFields(data) {
+      document.getElementById('panelWidth').value = data.origW;
+      document.getElementById('panelHeight').value = data.origH;
+    }
+
+    function closePanel() {
+      infoPanel.classList.remove('open');
+      viewport.classList.remove('panel-open');
+    }
+
+    document.getElementById('panelCloseBtn').addEventListener('click', () => {
+      deselectAll();
+    });
+
+    // 宽高比锁定
+    document.getElementById('lockAspect').addEventListener('click', function() {
+      state.aspectLocked = !state.aspectLocked;
+      this.classList.toggle('active', state.aspectLocked);
+    });
+
+    // 宽度/高度输入联动
+    document.getElementById('panelWidth').addEventListener('input', function() {
+      if (!state.selectedId) return;
+      const data = state.cards.get(state.selectedId);
+      if (!data) return;
+      const w = parseInt(this.value, 10);
+      if (isNaN(w) || w < 1) return;
+      if (state.aspectLocked) {
+        const h = Math.round(w / (data.origW / data.origH));
+        document.getElementById('panelHeight').value = h;
+      }
+    });
+
+    document.getElementById('panelHeight').addEventListener('input', function() {
+      if (!state.selectedId) return;
+      const data = state.cards.get(state.selectedId);
+      if (!data) return;
+      const h = parseInt(this.value, 10);
+      if (isNaN(h) || h < 1) return;
+      if (state.aspectLocked) {
+        const w = Math.round(h * (data.origW / data.origH));
+        document.getElementById('panelWidth').value = w;
+      }
+    });
+
+    // 导出格式选择
+    document.querySelectorAll('.format-option').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.format-option').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        state.exportFormat = this.dataset.format;
+        const qualitySection = document.getElementById('qualitySection');
+        qualitySection.style.display = (state.exportFormat === 'png' || state.exportFormat === 'ico') ? 'none' : '';
+      });
+    });
+
+    // 质量滑块
+    document.getElementById('qualitySlider').addEventListener('input', function() {
+      state.exportQuality = parseInt(this.value, 10) / 100;
+      document.getElementById('qualityValue').textContent = this.value;
+    });
+
+    // ── 导出下载 ──
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      if (!state.selectedId) return;
+      const data = state.cards.get(state.selectedId);
+      if (!data) return;
+
+      const exportW = parseInt(document.getElementById('panelWidth').value, 10) || data.origW;
+      const exportH = parseInt(document.getElementById('panelHeight').value, 10) || data.origH;
+
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = exportW;
+      offCanvas.height = exportH;
+      const ctx = offCanvas.getContext('2d');
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, exportW, exportH);
+        const baseName = data.name.replace(/\.[^.]+$/, '');
+
+        if (state.exportFormat === 'ico') {
+          offCanvas.toBlob((pngBlob) => {
+            pngBlob.arrayBuffer().then(pngBuf => {
+              const icoBlob = buildIco(new Uint8Array(pngBuf), exportW, exportH);
+              const url = URL.createObjectURL(icoBlob);
+              const link = document.createElement('a');
+              link.download = `${baseName}_${exportW}x${exportH}.ico`;
+              link.href = url;
+              link.click();
+              URL.revokeObjectURL(url);
+              showToast(`已导出 ${link.download}`, 'success');
+            });
+          }, 'image/png');
+          return;
+        }
+
+        let mimeType, ext;
+        switch (state.exportFormat) {
+          case 'jpeg':
+            mimeType = 'image/jpeg'; ext = 'jpg'; break;
+          case 'webp':
+            mimeType = 'image/webp'; ext = 'webp'; break;
+          default:
+            mimeType = 'image/png'; ext = 'png';
+        }
+
+        const quality = (state.exportFormat === 'png') ? undefined : state.exportQuality;
+        const dataUrl = offCanvas.toDataURL(mimeType, quality);
+
+        const link = document.createElement('a');
+        link.download = `${baseName}_${exportW}x${exportH}.${ext}`;
+        link.href = dataUrl;
+        link.click();
+        showToast(`已导出 ${link.download}`, 'success');
+      };
+      img.src = data.dataUrl;
+    });
+
+    /** 将 PNG 数据包装为 ICO 格式 */
+    function buildIco(pngData, w, h) {
+      const headerSize = 6;
+      const dirEntrySize = 16;
+      const dataOffset = headerSize + dirEntrySize;
+      const fileSize = dataOffset + pngData.length;
+      const buf = new ArrayBuffer(fileSize);
+      const view = new DataView(buf);
+
+      // ICO header: reserved(2) + type(2, 1=ICO) + imageCount(2)
+      view.setUint16(0, 0, true);
+      view.setUint16(2, 1, true);
+      view.setUint16(4, 1, true);
+
+      // Directory entry: width, height (0 = 256), colorPalette, reserved, planes, bpp, dataSize, dataOffset
+      view.setUint8(6, w >= 256 ? 0 : w);
+      view.setUint8(7, h >= 256 ? 0 : h);
+      view.setUint8(8, 0);   // color palette
+      view.setUint8(9, 0);   // reserved
+      view.setUint16(10, 1, true);  // color planes
+      view.setUint16(12, 32, true); // bits per pixel
+      view.setUint32(14, pngData.length, true);
+      view.setUint32(18, dataOffset, true);
+
+      const arr = new Uint8Array(buf);
+      arr.set(pngData, dataOffset);
+
+      return new Blob([buf], { type: 'image/x-icon' });
+    }
+
+    // ── 工具函数 ──
+    function escHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toastMsg');
+      msg.textContent = message;
+      const colors = { success: '#22c55e', error: '#ef4444', info: '#e2e8f0' };
+      const borders = { success: '#22c55e', error: '#ef4444', info: '#334155' };
+      toast.style.borderColor = borders[type] || borders.info;
+      msg.style.color = colors[type] || colors.info;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    // ── 键盘快捷键 ──
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        deselectAll();
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId) {
+        if (document.activeElement.tagName === 'INPUT') return;
+        const card = document.querySelector(`.img-card[data-card-id="${state.selectedId}"]`);
+        if (card) {
+          card.remove();
+          state.cards.delete(state.selectedId);
+          state.selectedId = null;
+          closePanel();
+          refreshIndex();
+        }
+      }
+    });
+
+    // ── 粘贴图片 ──
+    document.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) handleFiles([file]);
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>

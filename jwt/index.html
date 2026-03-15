@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT Decoder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            dark: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .token-header {
+      color: #86efac;
+    }
+
+    .token-payload {
+      color: #e2e8f0;
+    }
+
+    .token-signature {
+      color: #93c5fd;
+    }
+
+    .json-key {
+      color: #c084fc;
+    }
+
+    .json-string {
+      color: #86efac;
+    }
+
+    .json-number {
+      color: #fcd34d;
+    }
+
+    .json-boolean {
+      color: #f472b6;
+    }
+
+    .json-null {
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+  <!-- Header -->
+  <header class="border-b border-dark-700 bg-dark-800">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-6">
+        <div class="flex items-center space-x-1">
+          <button id="tab-decoder"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white">
+            JWT Decoder
+          </button>
+          <button id="tab-encoder"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-gray-200">
+            JWT Encoder
+          </button>
+        </div>
+        <p class="text-gray-400 text-sm hidden sm:block">Paste a JWT below that you'd like to decode, validate, and
+          verify.</p>
+      </div>
+      <button id="generate-example"
+        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
+        Generate example
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto p-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Left Column: Input -->
+      <div class="space-y-4">
+        <div class="bg-dark-800 rounded-xl border border-dark-700 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Encoded Value</h2>
+            <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer">
+              <input type="checkbox" id="auto-focus"
+                class="rounded bg-dark-700 border-dark-600 text-indigo-500 focus:ring-indigo-500">
+              <span>Enable auto-focus</span>
+            </label>
+          </div>
+
+          <!-- Status Indicators -->
+          <div id="status-container" class="space-y-2 mb-3">
+            <div id="valid-status"
+              class="hidden px-3 py-1.5 bg-green-900/50 border border-green-700 rounded text-green-400 text-sm flex items-center">
+              <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+              Valid JWT
+            </div>
+            <div id="invalid-status"
+              class="hidden px-3 py-1.5 bg-red-900/50 border border-red-700 rounded text-red-400 text-sm flex items-center">
+              <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+              Invalid JWT format
+            </div>
+          </div>
+
+          <div class="relative">
+            <div
+              class="flex items-center justify-between px-3 py-2 bg-dark-700 rounded-t-lg border border-dark-600 border-b-0">
+              <span class="text-xs text-gray-400 font-medium">JSON WEB TOKEN (JWT)</span>
+              <div class="flex items-center space-x-2">
+                <button id="copy-token"
+                  class="px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-dark-600 rounded transition-colors">
+                  COPY
+                </button>
+                <button id="clear-token"
+                  class="px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-dark-600 rounded transition-colors">
+                  CLEAR
+                </button>
+              </div>
+            </div>
+            <textarea id="jwt-input"
+              class="w-full h-96 bg-dark-900 border border-dark-600 border-t-0 rounded-b-lg p-3 text-sm font-mono text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              placeholder="Paste your JWT here..." spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Output -->
+      <div class="space-y-4">
+        <!-- Decoded Header -->
+        <div class="bg-dark-800 rounded-xl border border-dark-700 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Decoded Header</h2>
+            <div class="flex items-center space-x-2">
+              <div class="flex bg-dark-700 rounded-lg p-0.5">
+                <button id="header-view-json" class="px-3 py-1 text-xs font-medium rounded-md bg-indigo-600 text-white">
+                  JSON
+                </button>
+                <button id="header-view-claims"
+                  class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors">
+                  Claims Table
+                </button>
+              </div>
+              <button id="copy-header"
+                class="p-1.5 text-gray-400 hover:text-white hover:bg-dark-600 rounded transition-colors" title="Copy">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                  </path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="header-content"
+            class="bg-dark-900 rounded-lg border border-dark-700 p-4 min-h-32 overflow-auto scrollbar-thin">
+            <p class="text-gray-500 text-sm">Decoded header will appear here</p>
+          </div>
+        </div>
+
+        <!-- Decoded Payload -->
+        <div class="bg-dark-800 rounded-xl border border-dark-700 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Decoded Payload</h2>
+            <div class="flex items-center space-x-2">
+              <div class="flex bg-dark-700 rounded-lg p-0.5">
+                <button id="payload-view-json"
+                  class="px-3 py-1 text-xs font-medium rounded-md bg-indigo-600 text-white">
+                  JSON
+                </button>
+                <button id="payload-view-claims"
+                  class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors">
+                  Claims Table
+                </button>
+              </div>
+              <button id="copy-payload"
+                class="p-1.5 text-gray-400 hover:text-white hover:bg-dark-600 rounded transition-colors" title="Copy">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                  </path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="payload-content"
+            class="bg-dark-900 rounded-lg border border-dark-700 p-4 min-h-48 overflow-auto scrollbar-thin">
+            <p class="text-gray-500 text-sm">Decoded payload will appear here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <!-- Toast Notification -->
+  <div id="toast"
+    class="fixed bottom-4 right-4 bg-dark-700 text-white px-4 py-2 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+    Copied to clipboard!
+  </div>
+
+  <script>
+    // JWT Example
+    const exampleJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiYTJjNzZmODQtM2EzNi00YjY5LWJjMzItNDU0NTY1NzgzMmMwIiwiaWQiOiIxMjM0NTY3OCIsInVzZXJuYW1lIjoiam9obkRvZSIsIm5pY2tuYW1lIjoiSm9obiBEb2UiLCJhdXRob3JpdHlJZCI6ImFkbWluIiwidGVuYW50SWQiOiIxIiwiYXBpVG9rZW4iOmZhbHNlLCJidWZmZXJUaW1lIjoiNSIsImlzcyI6ImF1dGgiLCJhdWQiOiJhcGkiLCJleHAiOjE3MDk3NTYwMDAsIm5iZiI6MTcwOTc1MjQwMCwiaWF0IjoxNzA5NzUyNDAwfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+
+    // DOM Elements
+    const jwtInput = document.getElementById('jwt-input');
+    const validStatus = document.getElementById('valid-status');
+    const invalidStatus = document.getElementById('invalid-status');
+    const headerContent = document.getElementById('header-content');
+    const payloadContent = document.getElementById('payload-content');
+
+    // View state
+    let headerViewMode = 'json';
+    let payloadViewMode = 'json';
+
+    // Base64Url decode
+    function base64UrlDecode(str) {
+      try {
+        let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        const padding = base64.length % 4;
+        if (padding) {
+          base64 += '='.repeat(4 - padding);
+        }
+        return decodeURIComponent(atob(base64).split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Format JSON with syntax highlighting
+    function formatJSON(obj) {
+      const json = JSON.stringify(obj, null, 2);
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (match) => {
+        let cls = 'json-number';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = 'json-key';
+          } else {
+            cls = 'json-string';
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'json-boolean';
+        } else if (/null/.test(match)) {
+          cls = 'json-null';
+        }
+        return `<span class="${cls}">${match}</span>`;
+      });
+    }
+
+    // Format timestamp to readable date
+    function formatTimestamp(timestamp) {
+      const date = new Date(timestamp * 1000);
+      return date.toLocaleString();
+    }
+
+    // Claims mapping for human-readable names
+    const claimsMap = {
+      iss: 'Issuer',
+      sub: 'Subject',
+      aud: 'Audience',
+      exp: 'Expiration Time',
+      nbf: 'Not Before',
+      iat: 'Issued At',
+      jti: 'JWT ID'
+    };
+
+    // Render claims table
+    function renderClaimsTable(data) {
+      let html = '<table class="w-full text-sm">';
+      html += '<thead><tr class="border-b border-dark-700"><th class="text-left py-2 px-2 text-gray-400 font-medium">Claim</th><th class="text-left py-2 px-2 text-gray-400 font-medium">Value</th></tr></thead>';
+      html += '<tbody>';
+
+      for (const [key, value] of Object.entries(data)) {
+        const displayKey = claimsMap[key] || key;
+        let displayValue = value;
+
+        // Format timestamps
+        if (['exp', 'nbf', 'iat'].includes(key) && typeof value === 'number') {
+          displayValue = `<span class="text-yellow-400">${value}</span> <span class="text-gray-500 text-xs">(→ ${formatTimestamp(value)})</span>`;
+        } else if (typeof value === 'object') {
+          displayValue = JSON.stringify(value);
+        }
+
+        html += `<tr class="border-b border-dark-700/50 hover:bg-dark-800/50">
+                    <td class="py-2 px-2 text-purple-400 font-mono">${displayKey}</td>
+                    <td class="py-2 px-2 text-green-400 font-mono">${displayValue}</td>
+                </tr>`;
+      }
+
+      html += '</tbody></table>';
+      return html;
+    }
+
+    // Decode JWT
+    function decodeJWT(token) {
+      const parts = token.trim().split('.');
+
+      if (parts.length !== 3) {
+        return { valid: false, error: 'Invalid JWT format' };
+      }
+
+      const header = base64UrlDecode(parts[0]);
+      const payload = base64UrlDecode(parts[1]);
+
+      if (!header || !payload) {
+        return { valid: false, error: 'Invalid Base64 encoding' };
+      }
+
+      try {
+        const headerObj = JSON.parse(header);
+        const payloadObj = JSON.parse(payload);
+        return { valid: true, header: headerObj, payload: payloadObj };
+      } catch (e) {
+        return { valid: false, error: 'Invalid JSON in token' };
+      }
+    }
+
+    // Update display
+    function updateDisplay() {
+      const token = jwtInput.value.trim();
+
+      if (!token) {
+        validStatus.classList.add('hidden');
+        invalidStatus.classList.add('hidden');
+        headerContent.innerHTML = '<p class="text-gray-500 text-sm">Decoded header will appear here</p>';
+        payloadContent.innerHTML = '<p class="text-gray-500 text-sm">Decoded payload will appear here</p>';
+        return;
+      }
+
+      const result = decodeJWT(token);
+
+      if (result.valid) {
+        validStatus.classList.remove('hidden');
+        invalidStatus.classList.add('hidden');
+
+        // Render header
+        if (headerViewMode === 'json') {
+          headerContent.innerHTML = `<pre class="text-sm font-mono">${formatJSON(result.header)}</pre>`;
+        } else {
+          headerContent.innerHTML = renderClaimsTable(result.header);
+        }
+
+        // Render payload
+        if (payloadViewMode === 'json') {
+          payloadContent.innerHTML = `<pre class="text-sm font-mono">${formatJSON(result.payload)}</pre>`;
+        } else {
+          payloadContent.innerHTML = renderClaimsTable(result.payload);
+        }
+      } else {
+        validStatus.classList.add('hidden');
+        invalidStatus.classList.remove('hidden');
+        invalidStatus.innerHTML = `<span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>${result.error}`;
+      }
+    }
+
+    // Show toast
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2000);
+    }
+
+    // Event Listeners
+    jwtInput.addEventListener('input', updateDisplay);
+
+    // Generate example
+    document.getElementById('generate-example').addEventListener('click', () => {
+      jwtInput.value = exampleJWT;
+      updateDisplay();
+      if (document.getElementById('auto-focus').checked) {
+        jwtInput.focus();
+      }
+    });
+
+    // Copy token
+    document.getElementById('copy-token').addEventListener('click', () => {
+      navigator.clipboard.writeText(jwtInput.value).then(() => {
+        showToast('JWT copied to clipboard!');
+      });
+    });
+
+    // Clear token
+    document.getElementById('clear-token').addEventListener('click', () => {
+      jwtInput.value = '';
+      updateDisplay();
+    });
+
+    // Copy header
+    document.getElementById('copy-header').addEventListener('click', () => {
+      const token = jwtInput.value.trim();
+      if (token) {
+        const result = decodeJWT(token);
+        if (result.valid) {
+          navigator.clipboard.writeText(JSON.stringify(result.header, null, 2)).then(() => {
+            showToast('Header copied to clipboard!');
+          });
+        }
+      }
+    });
+
+    // Copy payload
+    document.getElementById('copy-payload').addEventListener('click', () => {
+      const token = jwtInput.value.trim();
+      if (token) {
+        const result = decodeJWT(token);
+        if (result.valid) {
+          navigator.clipboard.writeText(JSON.stringify(result.payload, null, 2)).then(() => {
+            showToast('Payload copied to clipboard!');
+          });
+        }
+      }
+    });
+
+    // Header view toggle
+    document.getElementById('header-view-json').addEventListener('click', () => {
+      headerViewMode = 'json';
+      document.getElementById('header-view-json').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('header-view-json').classList.remove('text-gray-400');
+      document.getElementById('header-view-claims').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('header-view-claims').classList.add('text-gray-400');
+      updateDisplay();
+    });
+
+    document.getElementById('header-view-claims').addEventListener('click', () => {
+      headerViewMode = 'claims';
+      document.getElementById('header-view-claims').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('header-view-claims').classList.remove('text-gray-400');
+      document.getElementById('header-view-json').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('header-view-json').classList.add('text-gray-400');
+      updateDisplay();
+    });
+
+    // Payload view toggle
+    document.getElementById('payload-view-json').addEventListener('click', () => {
+      payloadViewMode = 'json';
+      document.getElementById('payload-view-json').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('payload-view-json').classList.remove('text-gray-400');
+      document.getElementById('payload-view-claims').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('payload-view-claims').classList.add('text-gray-400');
+      updateDisplay();
+    });
+
+    document.getElementById('payload-view-claims').addEventListener('click', () => {
+      payloadViewMode = 'claims';
+      document.getElementById('payload-view-claims').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('payload-view-claims').classList.remove('text-gray-400');
+      document.getElementById('payload-view-json').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('payload-view-json').classList.add('text-gray-400');
+      updateDisplay();
+    });
+
+    // Tab switching (placeholder for encoder)
+    document.getElementById('tab-decoder').addEventListener('click', () => {
+      document.getElementById('tab-decoder').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('tab-decoder').classList.remove('text-gray-400');
+      document.getElementById('tab-encoder').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('tab-encoder').classList.add('text-gray-400');
+    });
+
+    document.getElementById('tab-encoder').addEventListener('click', () => {
+      document.getElementById('tab-encoder').classList.add('bg-indigo-600', 'text-white');
+      document.getElementById('tab-encoder').classList.remove('text-gray-400');
+      document.getElementById('tab-decoder').classList.remove('bg-indigo-600', 'text-white');
+      document.getElementById('tab-decoder').classList.add('text-gray-400');
+      showToast('Encoder coming soon!');
+    });
+  </script>
+</body>
+
+</html>
