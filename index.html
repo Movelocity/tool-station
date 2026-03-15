@@ -135,15 +135,23 @@
             return;
           }
 
-          // 修复：移除了手动计算宽度的 sizeClasses 逻辑
-          // 直接渲染卡片，CSS columns 会自动处理布局
           container.innerHTML = pages.map(function (p, index) {
             const tagClass = tags[index % tags.length];
+            
+            // [修改] 判断是否为外部链接 (http/https 开头)
+            const isExternal = p.path && (p.path.startsWith('http://') || p.path.startsWith('https://'));
+            
+            // [修改] 根据链接类型生成底部内容
+            // 外部链接使用较短的文字 "VISIT SITE" 和外出图标，避免增加宽度
+            // 内部链接保持原有 "LAUNCH MODULE" 和向右箭头
+            const footerContent = isExternal
+              ? '<span>VISIT SITE</span><svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>'
+              : '<span>LAUNCH MODULE</span><svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>';
 
             return (
               // 添加 break-inside-avoid 防止卡片被切断
               // 添加 mb-6 也就是 space-y-6 的效果，用于垂直分栏
-              '<a href="' + escapeHtml(p.path) + '" class="card group relative block break-inside-avoid mb-6 glass-card rounded-2xl p-6 transition-all duration-300 neon-hover overflow-hidden">' +
+              '<a href="' + escapeHtml(p.path) + '" target="' + (isExternal ? '_blank' : '_self') + '" class="card group relative block break-inside-avoid mb-6 glass-card rounded-2xl p-6 transition-all duration-300 neon-hover overflow-hidden">' +
                 
                 /* 装饰性角落 */
                 '<div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-3xl -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>' +
@@ -159,10 +167,9 @@
                   /* 描述 */
                   (p.description ? '<p class="text-slate-400 text-sm leading-relaxed line-clamp-3 group-hover:text-slate-300">' + escapeHtml(p.description) + '</p>' : '') +
                 
-                  /* 底部箭头 */
+                  /* 底部箭头 - 动态渲染 */
                   '<div class="mt-6 flex items-center text-xs font-mono text-slate-500 group-hover:translate-x-1 transition-transform">' +
-                    '<span>LAUNCH MODULE</span>' +
-                    '<svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>' +
+                    footerContent +
                   '</div>' +
                 '</div>' +
               '</a>'
