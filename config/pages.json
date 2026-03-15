@@ -4,40 +4,82 @@
   "_comment": "新增页面：在 pages 数组中添加一项，id 唯一，path 为相对根目录的路径（如 'xxx/' 或 'xxx.html'），category 可选。",
   "pages": [
     {
-      "title": "JWT Decoder",
       "path": "jwt/",
+      "title": "JWT Decoder",
       "description": "解码与校验 JWT，查看 Header / Payload / Signature。",
       "category": "开发"
     },
     {
-      "title": "火箭发射概率模拟器",
       "path": "rocket.html",
+      "title": "火箭发射概率模拟器",
       "description": "火箭动力值检测与发射概率模拟。",
       "category": "趣味"
     },
     {
-      "title": "图片画布处理",
       "path": "image-process/",
+      "title": "图片画布处理",
       "description": "图片画布处理工具，拖拽、缩放、裁剪。",
       "category": "图片"
     },
     {
-      "title": "多窗格 JSON 查看器",
       "path": "json-canvas/",
+      "title": "多窗格 JSON 查看器",
       "description": "多窗格 JSON 查看与编辑。",
       "category": "开发"
     },
     {
-      "title": "Tailwind Colors",
       "path": "https://tailwindcss.com/docs/colors",
+      "title": "Tailwind Colors",
       "description": "Tailwind Colors",
       "category": "开发"
     },
     {
-      "title": "Minimax Dashboard",
       "path": "https://platform.minimaxi.com/user-center/payment/recharge",
+      "title": "Minimax Dashboard",
       "description": "看看还有多少余额",
       "category": "开发"
+    },
+    {
+      "path": "https://cursor.com/dashboard",
+      "title": "Cursor Dashboard",
+      "description": "看还有多少余额",
+      "category": "开发"
+    },
+    {
+      "path": "https://docs.langchain.com/oss/python/langchain/multi-agent/skills",
+      "title": "LangChain Skills",
+      "description": "LangChain 技能文档说明",
+      "category": "skills"
+    },
+    {
+      "path": "https://agentskills.io/specification",
+      "title": "AgentSkills Specification",
+      "description": "AgentSkills 规范",
+      "category": "skills"
+    },
+    {
+      "path": "https://community.openai.com/t/400-invalid-image-bad-request-error-in-create-completion/964352",
+      "title": "大模型 400 Bad Request",
+      "description": "400 Bad Request 解决方案",
+      "category": "开发"
+    },
+    {
+      "path": "https://cursor.com/cn/docs/context/skills",
+      "title": "Cursor Skills",
+      "description": "Cursor Skills 文档说明",
+      "category": "skills"
+    },
+    {
+      "path": "https://agents.md/",
+      "title": "Agents.md",
+      "description": "Agents.md 文档说明",
+      "category": "skills"
+    },
+    {
+      "path": "https://aif.amtbbs.org/index.php/2025/11/28/28268/",
+      "title": "AI 论坛",
+      "description": "langchain skills",
+      "category": "skills"
     }
   ]
 }

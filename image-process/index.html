@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Image Process - 图片画布处理工具</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/lib/tailwind.js"></script>
   <style>
     * {
       scrollbar-width: thin;
@@ -407,20 +407,20 @@
 
     <div class="panel-section">
       <div class="panel-label">图片信息</div>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div style="display:flex; justify-content:space-between; font-size:13px;">
-          <span style="color:#64748b;">文件名</span>
-          <span id="panelFileName" style="color:#e2e8f0;">-</span>
+      <div className="flex flex-col gap-2">
+        <div style="font-size:13px;" className="flex justify-between">
+          <span style="color:#64748b;" class="text-nowrap">文件名</span>
+          <span id="panelFileName" style="color:#e2e8f0;" class="text-wrap break-all">-</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:13px;">
+        <div style="font-size:13px;" className="flex justify-between">
           <span style="color:#64748b;">原始尺寸</span>
           <span id="panelOrigSize" style="color:#e2e8f0;">-</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:13px;">
+        <div style="font-size:13px;" className="flex justify-between">
           <span style="color:#64748b;">文件大小</span>
           <span id="panelFileSize" style="color:#e2e8f0;">-</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:13px;">
+        <div style="font-size:13px;" className="flex justify-between">
           <span style="color:#64748b;">类型</span>
           <span id="panelMimeType" style="color:#e2e8f0;">-</span>
         </div>
