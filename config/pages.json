@@ -23,8 +23,8 @@
     },
     {
       "path": "json-canvas/",
-      "title": "多窗格 JSON 查看器",
-      "description": "多窗格 JSON 查看与编辑。",
+      "title": "卡片笔记 JSON 画布",
+      "description": "卡片笔记 JSON 画布，拖拽、缩放、裁剪。",
       "category": "开发"
     },
     {
