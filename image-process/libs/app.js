@@ -1,14 +1,24 @@
 import { state, canvas } from './state.js';
-import { deselectAll } from './card.js';
+import { deselectAll, duplicateCard } from './card.js';
 import { closePanel } from './panel.js';
 import { refreshIndex } from './index-bar.js';
 import { exportImage } from './export.js';
 import { setupFileInput, setupDragDrop, setupPaste } from './input.js';
+import { openCropModal, setupCropModal } from './crop.js';
 
 // ── Input sources ──
 setupFileInput();
 setupDragDrop();
 setupPaste();
+setupCropModal();
+
+// ── Panel action buttons ──
+document.getElementById('duplicateBtn').addEventListener('click', () => {
+  if (state.selectedId) duplicateCard(state.selectedId);
+});
+document.getElementById('cropBtn').addEventListener('click', () => {
+  if (state.selectedId) openCropModal(state.selectedId);
+});
 
 // ── Canvas background click → deselect ──
 canvas.addEventListener('mousedown', (e) => {

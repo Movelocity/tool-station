@@ -365,6 +365,196 @@
       background: rgba(30,41,59,.6);
       border-radius: 4px;
     }
+
+    /* ── 操作按钮 ── */
+    .action-btn {
+      flex: 1;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 500;
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .action-btn:hover {
+      border-color: #475569;
+      color: #e2e8f0;
+      background: #1e293b;
+    }
+
+    /* ── 裁剪弹窗 ── */
+    #cropModal {
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #cropModal.open { display: flex; }
+
+    .crop-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      width: min(92vw, 960px);
+      height: min(88vh, 740px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,.6);
+    }
+    .crop-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .crop-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin: 0;
+    }
+    #cropStage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    #cropImg {
+      position: absolute;
+      user-select: none;
+      pointer-events: none;
+      display: block;
+    }
+    #cropSelection {
+      position: absolute;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      cursor: move;
+      z-index: 2;
+    }
+    /* Rule-of-thirds grid lines */
+    #cropSelection::before,
+    #cropSelection::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #cropSelection::before {
+      border-left:  1px solid rgba(255,255,255,.25);
+      border-right: 1px solid rgba(255,255,255,.25);
+      left: 33.33%; right: 33.33%; top: 0; bottom: 0;
+    }
+    #cropSelection::after {
+      border-top:    1px solid rgba(255,255,255,.25);
+      border-bottom: 1px solid rgba(255,255,255,.25);
+      top: 33.33%; bottom: 33.33%; left: 0; right: 0;
+    }
+    .crop-handle {
+      position: absolute;
+      z-index: 3;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.25);
+    }
+    .crop-handle.corner { width: 10px; height: 10px; border-radius: 2px; }
+    .crop-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+    .crop-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+    .crop-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+    .crop-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+    .crop-handle.edge { background: rgba(255,255,255,.85); }
+    .crop-handle.n  { top: -3px; left: 25%; right: 25%; height: 6px; cursor: n-resize; }
+    .crop-handle.s  { bottom: -3px; left: 25%; right: 25%; height: 6px; cursor: s-resize; }
+    .crop-handle.w  { left: -3px; top: 25%; bottom: 25%; width: 6px; cursor: w-resize; }
+    .crop-handle.e  { right: -3px; top: 25%; bottom: 25%; width: 6px; cursor: e-resize; }
+    /* ── 裁剪工具栏 ── */
+    .crop-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .ratio-btn {
+      padding: 3px 10px;
+      font-size: 12px;
+      border-radius: 5px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ratio-btn:hover { border-color: #475569; color: #e2e8f0; }
+    .ratio-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+    .crop-footer {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      border-top: 1px solid #1e293b;
+      flex-shrink: 0;
+      gap: 10px;
+    }
+    .crop-size-inputs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .crop-size-inputs label {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .crop-size-inputs span {
+      font-size: 12px;
+      color: #475569;
+    }
+    .crop-size-input {
+      width: 70px;
+      padding: 4px 8px;
+      font-size: 13px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      color: #e2e8f0;
+      outline: none;
+    }
+    .crop-size-input:focus { border-color: #3b82f6; }
+    .crop-apply-btn {
+      padding: 8px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .crop-apply-btn:hover { background: #1d4ed8; }
+    .crop-cancel-btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .crop-cancel-btn:hover { border-color: #475569; color: #e2e8f0; }
   </style>
 </head>
 
@@ -428,6 +618,14 @@
     </div>
 
     <div class="panel-section">
+      <div class="panel-label">操作</div>
+      <div style="display:flex; gap:8px;">
+        <button class="action-btn" id="duplicateBtn">复制图片</button>
+        <button class="action-btn" id="cropBtn">裁剪图片</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
       <div class="panel-label">导出尺寸</div>
       <div class="panel-row">
         <div class="panel-field">
@@ -466,6 +664,50 @@
       <button class="download-btn" id="downloadBtn">
         <span style="margin-right:6px;">⬇</span> 导出并下载
       </button>
+    </div>
+  </div>
+
+  <!-- ── 裁剪弹窗 ── -->
+  <div id="cropModal">
+    <div class="crop-box">
+      <div class="crop-header">
+        <h2>裁剪图片</h2>
+        <button class="panel-close-btn" id="cropCancelBtn" style="position:static;">✕</button>
+      </div>
+      <div class="crop-toolbar">
+        <button class="ratio-btn active" data-ratio="free">自由</button>
+        <button class="ratio-btn" data-ratio="1:1">1 : 1</button>
+        <button class="ratio-btn" data-ratio="4:3">4 : 3</button>
+        <button class="ratio-btn" data-ratio="3:2">3 : 2</button>
+        <button class="ratio-btn" data-ratio="16:9">16 : 9</button>
+        <button class="ratio-btn" data-ratio="2:3">2 : 3</button>
+        <button class="ratio-btn" data-ratio="9:16">9 : 16</button>
+      </div>
+      <div id="cropStage">
+        <img id="cropImg" draggable="false" alt="">
+        <div id="cropSelection">
+          <div class="crop-handle corner nw" data-dir="nw"></div>
+          <div class="crop-handle corner ne" data-dir="ne"></div>
+          <div class="crop-handle corner sw" data-dir="sw"></div>
+          <div class="crop-handle corner se" data-dir="se"></div>
+          <div class="crop-handle edge n" data-dir="n"></div>
+          <div class="crop-handle edge s" data-dir="s"></div>
+          <div class="crop-handle edge w" data-dir="w"></div>
+          <div class="crop-handle edge e" data-dir="e"></div>
+        </div>
+      </div>
+      <div class="crop-footer">
+        <div class="crop-size-inputs">
+          <label>W</label>
+          <input type="number" id="cropInputW" class="crop-size-input" min="1">
+          <span>×</span>
+          <label>H</label>
+          <input type="number" id="cropInputH" class="crop-size-input" min="1">
+          <span>px</span>
+        </div>
+        <button class="crop-cancel-btn" id="cropCancelBtn2">取消</button>
+        <button class="crop-apply-btn" id="cropApplyBtn">应用裁剪</button>
+      </div>
     </div>
   </div>
 

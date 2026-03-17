@@ -6,6 +6,20 @@ import { refreshIndex, setActiveChip } from './index-bar.js';
 import { attachDrag } from './drag.js';
 import { attachResize } from './resize.js';
 
+export function duplicateCard(id) {
+  const data = state.cards.get(id);
+  if (!data) return;
+  createImageCard({
+    name:     data.name,
+    file:     data.file,
+    origW:    data.origW,
+    origH:    data.origH,
+    fileSize: data.fileSize,
+    mimeType: data.mimeType,
+    dataUrl:  data.dataUrl,
+  });
+}
+
 export function bringToFront(cardEl, cardData) {
   state.topZ++;
   cardEl.style.zIndex = state.topZ;

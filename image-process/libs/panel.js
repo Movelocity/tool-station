@@ -8,7 +8,7 @@ export function openPanel(id) {
   document.getElementById('panelPreview').src          = data.dataUrl;
   document.getElementById('panelFileName').textContent = data.name;
   document.getElementById('panelOrigSize').textContent = `${data.origW} × ${data.origH}`;
-  document.getElementById('panelFileSize').textContent = formatSize(data.fileSize);
+  document.getElementById('panelFileSize').textContent = data.fileSize ? formatSize(data.fileSize) : '—';
   document.getElementById('panelMimeType').textContent = data.mimeType;
 
   updatePanelFields(data);
