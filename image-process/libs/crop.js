@@ -8,6 +8,7 @@ let scaleX = 1, scaleY = 1;
 let imgLeft = 0, imgTop = 0;
 let renderedW = 0, renderedH = 0;
 let lockedRatio = null; // null = free, number = w/h
+let cropRadius = 0;     // 0-100 percent (0 = rect, 100 = circle)
 
 // Selection in rendered-image space (origin = top-left of image)
 let sel = { x: 0, y: 0, w: 0, h: 0 };
@@ -19,11 +20,14 @@ export function openCropModal(id) {
   if (!data) return;
   cropCardId = id;
 
-  // Reset ratio to free on each open
+  // Reset controls on each open
   lockedRatio = null;
+  cropRadius  = 0;
   document.querySelectorAll('.ratio-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.ratio === 'free');
   });
+  document.getElementById('cropRadiusSlider').value         = 0;
+  document.getElementById('cropRadiusValue').textContent    = '0%';
 
   const modal   = document.getElementById('cropModal');
   const cropImg = document.getElementById('cropImg');
@@ -57,25 +61,85 @@ export function openCropModal(id) {
 }
 
 export function setupCropModal() {
+  // ── Inject modal DOM ──
+  const modal = document.createElement('div');
+  modal.id = 'cropModal';
+  modal.innerHTML = `
+    <div class="crop-box">
+      <div class="crop-header">
+        <h2>裁剪图片</h2>
+        <button class="panel-close-btn" id="cropCancelBtn" style="position:static;">✕</button>
+      </div>
+      <div class="crop-toolbar">
+        <button class="ratio-btn active" data-ratio="free">自由</button>
+        <button class="ratio-btn" data-ratio="1:1">1 : 1</button>
+        <button class="ratio-btn" data-ratio="4:3">4 : 3</button>
+        <button class="ratio-btn" data-ratio="3:2">3 : 2</button>
+        <button class="ratio-btn" data-ratio="16:9">16 : 9</button>
+        <button class="ratio-btn" data-ratio="2:3">2 : 3</button>
+        <button class="ratio-btn" data-ratio="9:16">9 : 16</button>
+        <div class="crop-radius-control">
+          <label>圆角</label>
+          <input type="range" id="cropRadiusSlider" min="0" max="100" value="0" step="1">
+          <span id="cropRadiusValue">0%</span>
+        </div>
+      </div>
+      <div id="cropStage">
+        <img id="cropImg" draggable="false" alt="">
+        <div id="cropSelection">
+          <div class="crop-handle corner nw" data-dir="nw"></div>
+          <div class="crop-handle corner ne" data-dir="ne"></div>
+          <div class="crop-handle corner sw" data-dir="sw"></div>
+          <div class="crop-handle corner se" data-dir="se"></div>
+          <div class="crop-handle edge n" data-dir="n"></div>
+          <div class="crop-handle edge s" data-dir="s"></div>
+          <div class="crop-handle edge w" data-dir="w"></div>
+          <div class="crop-handle edge e" data-dir="e"></div>
+        </div>
+      </div>
+      <div class="crop-footer">
+        <div class="crop-size-inputs">
+          <label>W</label>
+          <input type="number" id="cropInputW" class="crop-size-input" min="1">
+          <span>×</span>
+          <label>H</label>
+          <input type="number" id="cropInputH" class="crop-size-input" min="1">
+          <span>px</span>
+        </div>
+        <button class="crop-cancel-btn" id="cropCancelBtn2">取消</button>
+        <button class="crop-apply-btn" id="cropApplyBtn">应用裁剪</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // ── Event bindings ──
   [document.getElementById('cropCancelBtn'),
    document.getElementById('cropCancelBtn2')].forEach(btn =>
     btn.addEventListener('click', closeCropModal));
 
-  document.getElementById('cropModal').addEventListener('mousedown', (e) => {
-    if (e.target === document.getElementById('cropModal')) closeCropModal();
+  modal.addEventListener('mousedown', (e) => {
+    if (e.target === modal) closeCropModal();
   });
 
   document.getElementById('cropApplyBtn').addEventListener('click', applyCrop);
 
   // Ratio preset buttons
-  document.querySelectorAll('.ratio-btn').forEach(btn => {
+  modal.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+      modal.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const raw = btn.dataset.ratio;
       lockedRatio = raw === 'free' ? null : parseRatio(raw);
       if (lockedRatio !== null) applyRatioToSel();
     });
+  });
+
+  // Corner radius slider
+  document.getElementById('cropRadiusSlider').addEventListener('input', function () {
+    cropRadius = parseInt(this.value, 10);
+    document.getElementById('cropRadiusValue').textContent = cropRadius + '%';
+    syncSelectionEl();
   });
 
   // W / H pixel inputs
@@ -148,6 +212,10 @@ function syncSelectionEl() {
   el.style.top    = (imgTop  + sel.y) + 'px';
   el.style.width  = sel.w + 'px';
   el.style.height = sel.h + 'px';
+
+  // Corner radius: 0% = square, 100% = circle (half of shortest side)
+  const rPx = (cropRadius / 100) * Math.min(sel.w, sel.h) / 2;
+  el.style.borderRadius = rPx + 'px';
 }
 
 function syncControls() {
@@ -169,10 +237,17 @@ function applyCrop() {
   const off = document.createElement('canvas');
   off.width  = cropW;
   off.height = cropH;
-  // cropImg is already decoded (it's displayed in the modal); use it directly.
-  // drawImage reads naturalWidth/naturalHeight regardless of CSS dimensions.
+  const ctx = off.getContext('2d');
+
+  if (cropRadius > 0) {
+    const r = (cropRadius / 100) * Math.min(cropW, cropH) / 2;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cropW, cropH, r);
+    ctx.clip();
+  }
+
   const cropImg = document.getElementById('cropImg');
-  off.getContext('2d').drawImage(cropImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  ctx.drawImage(cropImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
   const baseName = data.name.replace(/\.[^.]+$/, '');
   createImageCard({
@@ -236,17 +311,14 @@ function attachSelectionResize(handle) {
       // Apply ratio lock
       if (lockedRatio !== null) {
         if (dir === 'n' || dir === 's') {
-          // Height drives width; keep horizontally centered
           const newW = h * lockedRatio;
           x = origSel.x + (origSel.w - newW) / 2;
           w = newW;
         } else if (dir === 'e' || dir === 'w') {
-          // Width drives height; keep vertically centered
           const newH = w / lockedRatio;
           y = origSel.y + (origSel.h - newH) / 2;
           h = newH;
         } else {
-          // Corner: width drives height
           const newH = w / lockedRatio;
           if (dir.includes('n')) y = origSel.y + (origSel.h - newH);
           h = newH;
