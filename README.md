@@ -4,7 +4,7 @@ A personal collection of browser-based utilities — each a single, self-contain
 
 ## The idea
 
-Modern frontend frameworks (React, Vue, etc.) demand attention to project structure, build tooling, and boilerplate. That overhead limits how much of an AI's capability can go toward what actually matters: the design and experience.
+Modern frontend frameworks (React, Vue, etc.) demand attention to project structure, build tooling, and boilerplate. That overhead limits how much of an AI's capability can go toward what actually matters on user side: the design and experience.
 
 When the constraint is lifted — just one HTML file, vanilla JS, plain CSS — the AI can focus entirely on craft. The result tends to look and feel better, because nothing was wasted on scaffolding.
 
