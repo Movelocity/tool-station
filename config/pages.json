@@ -10,7 +10,7 @@
       "category": "开发"
     },
     {
-      "path": "rocket.html",
+      "path": "rocket/",
       "title": "火箭发射概率模拟器",
       "description": "火箭动力值检测与发射概率模拟。",
       "category": "趣味"
@@ -20,6 +20,12 @@
       "title": "图片画布处理",
       "description": "图片画布处理工具，拖拽、缩放、裁剪。",
       "category": "图片"
+    },
+    {
+      "path": "qr-reader/",
+      "title": "QR Code Reader",
+      "description": "Upload an image to decode the text behind a QR code.",
+      "category": "工具"
     },
     {
       "path": "json-canvas/",

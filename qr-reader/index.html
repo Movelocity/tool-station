@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Reader</title>
+  <script src="/lib/tailwind.js"></script>
+  <link rel="stylesheet" href="/lib/fonts-inter.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    #drop-zone.drag-over {
+      border-color: #4ade80;
+      background-color: rgba(74, 222, 128, 0.05);
+    }
+
+    #drop-zone.drag-over .upload-icon {
+      color: #4ade80;
+    }
+
+    .result-appear {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+
+  <!-- Header -->
+  <header class="border-b border-dark-700 bg-dark-800">
+    <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold text-white">QR Code Reader</h1>
+        <p class="text-sm text-gray-400 hidden sm:block">Upload an image to decode the QR code</p>
+      </div>
+      <a href="/" class="text-sm text-gray-400 hover:text-white transition-colors">← Back</a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+    <!-- Upload Zone -->
+    <div id="drop-zone"
+      class="relative border-2 border-dashed border-dark-600 rounded-2xl p-8 text-center cursor-pointer transition-colors hover:border-green-400/50"
+      onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept="image/*" class="hidden">
+
+      <!-- Icon -->
+      <div class="upload-icon flex justify-center mb-4 transition-colors text-dark-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="5" y="5" width="3" height="3" fill="currentColor"/>
+          <rect x="16" y="5" width="3" height="3" fill="currentColor"/>
+          <rect x="5" y="16" width="3" height="3" fill="currentColor"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 14h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/>
+        </svg>
+      </div>
+
+      <p class="text-gray-300 font-medium mb-1">Tap to select an image</p>
+      <p class="text-gray-500 text-sm">or drag &amp; drop here · PNG, JPG, WEBP, GIF</p>
+    </div>
+
+    <!-- Preview + Result -->
+    <div id="result-area" class="hidden result-appear space-y-4">
+
+      <!-- Image preview -->
+      <div class="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+        <div class="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Preview</span>
+          <button id="clear-btn" class="text-xs text-gray-500 hover:text-white transition-colors">Clear</button>
+        </div>
+        <div class="p-4 flex justify-center bg-dark-900/50">
+          <img id="preview-img" src="" alt="QR preview"
+            class="max-h-64 max-w-full object-contain rounded-lg">
+        </div>
+      </div>
+
+      <!-- Decoded result -->
+      <div id="decode-success" class="hidden bg-dark-800 rounded-xl border border-green-500/40">
+        <div class="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Decoded Text</span>
+          </div>
+          <button id="copy-btn"
+            class="text-xs px-3 py-1 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors">
+            Copy
+          </button>
+        </div>
+        <div class="p-4">
+          <p id="decoded-text" class="text-green-400 font-mono text-sm break-all whitespace-pre-wrap"></p>
+        </div>
+        <!-- Open link if URL -->
+        <div id="open-link-row" class="hidden px-4 pb-4">
+          <a id="open-link" href="#" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors underline underline-offset-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+            Open link
+          </a>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div id="decode-error" class="hidden bg-dark-800 rounded-xl border border-red-500/40 px-4 py-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-red-400"></span>
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">No QR Code Found</span>
+        </div>
+        <p class="text-red-400 text-sm">Make sure the image contains a clear, undistorted QR code and try again.</p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast"
+    class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-dark-700 text-white text-sm px-4 py-2 rounded-lg shadow-xl
+           opacity-0 translate-y-4 transition-all duration-300 pointer-events-none">
+    Copied!
+  </div>
+
+  <!-- Hidden canvas for QR processing -->
+  <canvas id="qr-canvas" class="hidden"></canvas>
+
+  <!-- jsQR library -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <script>
+    const fileInput   = document.getElementById('file-input');
+    const dropZone    = document.getElementById('drop-zone');
+    const resultArea  = document.getElementById('result-area');
+    const previewImg  = document.getElementById('preview-img');
+    const decodeOk    = document.getElementById('decode-success');
+    const decodeErr   = document.getElementById('decode-error');
+    const decodedText = document.getElementById('decoded-text');
+    const openLinkRow = document.getElementById('open-link-row');
+    const openLink    = document.getElementById('open-link');
+    const copyBtn     = document.getElementById('copy-btn');
+    const clearBtn    = document.getElementById('clear-btn');
+    const canvas      = document.getElementById('qr-canvas');
+    const ctx         = canvas.getContext('2d');
+
+    // ── File input ──────────────────────────────────────────────────────────
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) processFile(e.target.files[0]);
+    });
+
+    // ── Drag & drop ─────────────────────────────────────────────────────────
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    ['dragleave', 'dragend'].forEach(ev =>
+      dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'))
+    );
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) processFile(file);
+    });
+
+    // ── Paste (Ctrl+V / mobile share) ───────────────────────────────────────
+    document.addEventListener('paste', e => {
+      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
+      if (item) processFile(item.getAsFile());
+    });
+
+    // ── Clear ────────────────────────────────────────────────────────────────
+    clearBtn.addEventListener('click', () => {
+      resultArea.classList.add('hidden');
+      fileInput.value = '';
+      decodeOk.classList.add('hidden');
+      decodeErr.classList.add('hidden');
+    });
+
+    // ── Copy ─────────────────────────────────────────────────────────────────
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(decodedText.textContent).then(() => showToast('Copied!'));
+    });
+
+    // ── Core: process image file ─────────────────────────────────────────────
+    function processFile(file) {
+      const url = URL.createObjectURL(file);
+      previewImg.onload = () => {
+        URL.revokeObjectURL(url);
+        decodeQR(previewImg);
+      };
+      previewImg.src = url;
+      resultArea.classList.remove('hidden');
+      resultArea.classList.add('result-appear');
+      decodeOk.classList.add('hidden');
+      decodeErr.classList.add('hidden');
+    }
+
+    function decodeQR(img) {
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code) {
+        decodedText.textContent = code.data;
+        decodeOk.classList.remove('hidden');
+        decodeErr.classList.add('hidden');
+
+        // Show "Open link" if the content looks like a URL
+        try {
+          const u = new URL(code.data);
+          if (u.protocol === 'http:' || u.protocol === 'https:') {
+            openLink.href = code.data;
+            openLink.textContent = code.data.length > 60
+              ? code.data.slice(0, 57) + '…'
+              : code.data;
+            openLinkRow.classList.remove('hidden');
+          } else {
+            openLinkRow.classList.add('hidden');
+          }
+        } catch {
+          openLinkRow.classList.add('hidden');
+        }
+      } else {
+        decodeOk.classList.add('hidden');
+        decodeErr.classList.remove('hidden');
+      }
+    }
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-4');
+      setTimeout(() => toast.classList.add('opacity-0', 'translate-y-4'), 1800);
+    }
+  </script>
+
+</body>
+</html>
