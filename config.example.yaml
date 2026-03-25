@@ -1,0 +1,23 @@
+# Pages KV Server — configuration
+
+server:
+  port: 5500
+  flush_interval: 5        # seconds between dirty-flag file flushes
+
+# Hosts allowed in the HTTP Host header (DNS-rebinding protection).
+# Format: "hostname:port"  — port must match server.port above.
+allowed_hosts:
+  - "localhost:5500"
+  - "127.0.0.1:5500"
+
+limits:
+  max_body_kb: 512         # max request body size
+  max_value_kb: 256        # max serialised value size stored per key
+  max_key_length: 256      # max key string length (characters)
+  max_store_keys: 10000    # max total keys in memory
+
+# URL path prefixes the static file server will refuse to serve (→ 403).
+# Protects server-side files from being read by the browser.
+blocked_static:
+  - "/server.yaml"
+  - "/data"
