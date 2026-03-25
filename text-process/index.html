@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Process</title>
+  <link rel="stylesheet" href="/lib/fonts-inter.css">
+  <script src="/lib/tailwind.js"></script>
+  <script src="/lib/kv.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    * { scrollbar-width: thin; scrollbar-color: #475569 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    textarea { resize: none; }
+    .mono { font-family: 'Fira Code', 'Cascadia Mono', 'Consolas', monospace; }
+
+    .tab-btn { transition: color .12s, background .12s, border-color .12s; }
+    .tab-btn.active  { color: #4ade80; background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.35); }
+    .tab-btn:not(.active) { color: #94a3b8; border-color: transparent; }
+    .tab-btn:not(.active):hover { color: #cbd5e1; background: rgba(255,255,255,.05); }
+
+    .toggle-track { transition: background .15s; }
+    .toggle-thumb { transition: transform .15s, background .15s; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen flex flex-col overflow-hidden">
+
+  <!-- ── Header ────────────────────────────────────────────────────────── -->
+  <header class="h-14 flex items-center justify-between px-5 border-b border-slate-700/70 flex-shrink-0">
+    <div class="flex items-center gap-2.5">
+      <svg class="w-[18px] h-[18px] text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      <a href="/" class="font-semibold text-slate-100 hover:text-green-400 transition-colors tracking-tight">Text Process</a>
+    </div>
+    <button id="btn-new"
+      class="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-green-400/50 hover:text-green-400 transition-all">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+      </svg>
+      New Script
+    </button>
+  </header>
+
+  <!-- ── Script tab strip ──────────────────────────────────────────────── -->
+  <div class="border-b border-slate-700/70 flex-shrink-0 flex items-stretch bg-slate-800/30" style="min-height:44px">
+    <div id="tabs" class="flex items-center gap-1 px-3 py-1.5 overflow-x-auto flex-1 min-w-0"></div>
+    <div id="tab-actions" style="display:none" class="items-center gap-0.5 pr-2 flex-shrink-0">
+      <button id="btn-edit"
+        class="flex items-center gap-1 px-2.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 transition-all">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+        </svg>
+        Edit
+      </button>
+      <button id="btn-delete"
+        class="flex items-center gap-1 px-2.5 py-1 rounded text-xs text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Main split ─────────────────────────────────────────────────────── -->
+  <main class="flex-1 flex overflow-hidden">
+
+    <!-- Input panel -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <div class="px-4 pt-2.5 pb-1 flex items-center justify-between flex-shrink-0">
+        <span class="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">Input</span>
+        <button id="btn-clear" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Clear</button>
+      </div>
+      <textarea id="input-area"
+        class="flex-1 bg-transparent px-4 py-1 text-sm text-slate-100 leading-relaxed outline-none"
+        placeholder="Enter text here…" spellcheck="false"></textarea>
+
+      <!-- Trigger bar -->
+      <div class="px-4 py-2 border-t border-slate-700/50 flex items-center gap-4 flex-shrink-0">
+        <span class="text-[10px] text-slate-500 uppercase tracking-wider flex-shrink-0">Trigger</span>
+        <div class="flex items-center gap-4 text-sm">
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-300 select-none">
+            <input type="radio" name="trigger" value="input" class="accent-green-400"> Live
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-300 select-none">
+            <input type="radio" name="trigger" value="blur" class="accent-green-400"> On blur
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-300 select-none" title="Ctrl+Enter">
+            <input type="radio" name="trigger" value="click" class="accent-green-400" checked> Manual
+          </label>
+        </div>
+        <button id="btn-run"
+          class="ml-auto text-sm px-4 py-1 rounded-lg bg-green-400/10 border border-green-400/30 text-green-400 hover:bg-green-400/20 transition-all">
+          ▶ Run
+        </button>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="w-px bg-slate-700/70 flex-shrink-0 self-stretch"></div>
+
+    <!-- Output panel -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <div class="px-4 pt-2.5 pb-1 flex items-center justify-between flex-shrink-0">
+        <span class="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">Output</span>
+        <button id="btn-copy-out" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Copy</button>
+      </div>
+      <textarea id="output-area"
+        class="flex-1 bg-transparent px-4 py-1 text-sm text-slate-200 leading-relaxed outline-none"
+        readonly placeholder="Output will appear here…" spellcheck="false"></textarea>
+      <div class="px-4 py-2 border-t border-slate-700/50 flex-shrink-0 flex items-center min-h-[40px]">
+        <span id="status" class="text-xs text-slate-500 transition-opacity"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Script editor modal ───────────────────────────────────────────── -->
+  <div id="modal" style="display:none"
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 border border-slate-700/80 rounded-2xl w-full max-w-2xl flex flex-col shadow-2xl"
+      style="max-height:90vh">
+
+      <!-- Modal header -->
+      <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
+        <h2 id="modal-title" class="font-semibold text-slate-100">New Script</h2>
+        <button id="modal-close"
+          class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-all text-xl leading-none">
+          ×
+        </button>
+      </div>
+
+      <!-- Modal body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-h-0">
+
+        <!-- Name -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">Script name</label>
+          <input id="f-name" type="text" placeholder="e.g. Capitalize words" autocomplete="off"
+            class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-green-400/50 transition-colors">
+        </div>
+
+        <!-- Default trigger -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-2">Default trigger</label>
+          <div class="flex gap-5 text-sm">
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="input" class="accent-green-400"> Live
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="blur" class="accent-green-400"> On blur
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="click" class="accent-green-400" checked> Manual
+            </label>
+          </div>
+        </div>
+
+        <!-- Code editor -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">
+            Code
+            <span class="text-slate-500 ml-1">
+              — receives <code class="bg-slate-700/60 px-1 py-0.5 rounded text-green-400/80 text-[11px]">input</code>
+              string, return the result (async/await supported)
+            </span>
+          </label>
+          <textarea id="f-code" rows="11"
+            class="mono w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-green-400/50 transition-colors leading-relaxed"
+            placeholder="// Example: reverse&#10;return input.split('').reverse().join('')"
+            spellcheck="false"></textarea>
+        </div>
+
+        <!-- Publish section -->
+        <div class="rounded-xl border border-slate-700 overflow-hidden">
+
+          <!-- Toggle row -->
+          <div class="flex items-start gap-4 p-4">
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-slate-200">Make public</div>
+              <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                Share this script with anyone on this server. You can unpublish it later — your creator ID is saved in this browser.
+              </p>
+            </div>
+            <button id="publish-toggle" role="switch" aria-checked="false"
+              class="toggle-track relative flex-shrink-0 w-11 h-6 rounded-full mt-0.5 focus:outline-none">
+              <span id="publish-thumb" class="toggle-thumb absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow"></span>
+            </button>
+          </div>
+
+          <!-- Share URL -->
+          <div id="share-row" style="display:none"
+            class="border-t border-slate-700 px-4 py-3 flex items-center gap-2">
+            <span class="text-xs text-slate-500 flex-shrink-0">Link</span>
+            <input id="share-url" type="text" readonly
+              class="mono flex-1 min-w-0 bg-slate-900/50 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 outline-none cursor-text">
+            <button id="btn-copy-link"
+              class="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-all">
+              Copy
+            </button>
+          </div>
+
+          <!-- Unpublish -->
+          <div id="unpublish-row" style="display:none"
+            class="border-t border-slate-700 px-4 py-3 flex items-center justify-between">
+            <span class="text-xs text-slate-500">You are the author of this public script.</span>
+            <button id="btn-unpublish"
+              class="text-xs text-red-400 hover:text-red-300 transition-colors">
+              Unpublish
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /modal body -->
+
+      <!-- Modal footer -->
+      <div class="px-6 py-4 border-t border-slate-700 flex items-center justify-end gap-3 flex-shrink-0">
+        <button id="modal-cancel"
+          class="text-sm px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-500 transition-colors">
+          Cancel
+        </button>
+        <button id="modal-save"
+          class="text-sm px-5 py-2 rounded-lg bg-green-400/10 border border-green-400/30 text-green-400 hover:bg-green-400/20 transition-all font-medium">
+          Save Script
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ── Constants ──────────────────────────────────────────────────────────────
+  const LS_SCRIPTS = 'tp:scripts';
+  const LS_AUTHOR  = 'tp:authorId';
+  const KV_INDEX   = 'tp/scripts';
+  const KV_KEY     = id => `tp/script/${id}`;
+
+  // ── Author identity (stable random ID per browser) ─────────────────────────
+  const myId = (() => {
+    let id = localStorage.getItem(LS_AUTHOR);
+    if (!id) {
+      id = 'a' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      localStorage.setItem(LS_AUTHOR, id);
+    }
+    return id;
+  })();
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let scripts    = [];   // all local scripts
+  let selectedId = null; // selected script id
+  let editingId  = null; // id being edited in modal (null = new)
+  let editPublic = false;// current modal toggle
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const genId = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+  const $     = id => document.getElementById(id);
+
+  // ── Local persistence ──────────────────────────────────────────────────────
+  function readLocal() {
+    try { return JSON.parse(localStorage.getItem(LS_SCRIPTS) || '[]'); }
+    catch { return []; }
+  }
+  function writeLocal() { localStorage.setItem(LS_SCRIPTS, JSON.stringify(scripts)); }
+
+  // ── Script helpers ─────────────────────────────────────────────────────────
+  function find(id) { return scripts.find(s => s.id === id); }
+
+  function upsert(script) {
+    const i = scripts.findIndex(s => s.id === script.id);
+    if (i >= 0) scripts[i] = script; else scripts.push(script);
+    writeLocal();
+  }
+
+  // ── Server KV operations ───────────────────────────────────────────────────
+  async function serverPublish(script) {
+    await kv.set(KV_KEY(script.id), script);
+    const index = (await kv.get(KV_INDEX)) || [];
+    const summary = { id: script.id, name: script.name, trigger: script.trigger,
+                      authorId: script.authorId, updatedAt: script.updatedAt };
+    const i = index.findIndex(s => s.id === script.id);
+    if (i >= 0) index[i] = summary; else index.push(summary);
+    await kv.set(KV_INDEX, index);
+  }
+
+  async function serverUnpublish(id) {
+    await kv.del(KV_KEY(id));
+    const index = ((await kv.get(KV_INDEX)) || []).filter(s => s.id !== id);
+    await kv.set(KV_INDEX, index);
+  }
+
+  // ── Load scripts (local + public from server) ──────────────────────────────
+  async function loadAll() {
+    scripts = readLocal();
+    try {
+      const index = await kv.get(KV_INDEX);
+      if (Array.isArray(index)) {
+        for (const entry of index) {
+          if (!find(entry.id)) {
+            const full = await kv.get(KV_KEY(entry.id));
+            if (full) scripts.push(full);
+          }
+        }
+        writeLocal();
+      }
+    } catch { /* server unavailable */ }
+    renderTabs();
+  }
+
+  // ── Script execution ───────────────────────────────────────────────────────
+  const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+
+  async function exec(script, input) {
+    try {
+      const result = await new AsyncFn('input', script.code)(input);
+      return result == null ? '' : String(result);
+    } catch (e) {
+      return `⚠ ${e.message}`;
+    }
+  }
+
+  // ── Trigger & run ──────────────────────────────────────────────────────────
+  let debounceTimer = null;
+
+  function getTrigger() {
+    return document.querySelector('input[name="trigger"]:checked')?.value || 'click';
+  }
+  function setTrigger(val) {
+    const el = document.querySelector(`input[name="trigger"][value="${val}"]`);
+    if (el) el.checked = true;
+    syncRunBtn();
+  }
+  function syncRunBtn() {
+    $('btn-run').style.display = getTrigger() === 'click' ? '' : 'none';
+  }
+
+  async function run(source) {
+    const mode = getTrigger();
+    if (mode === 'click' && source !== 'manual') return;
+    if (mode === 'blur'  && source !== 'blur')   return;
+    const script = find(selectedId);
+    if (!script) return;
+    setStatus('Running…');
+    $('output-area').value = await exec(script, $('input-area').value);
+    setStatus('');
+  }
+
+  // ── Status bar ─────────────────────────────────────────────────────────────
+  let statusTimer = null;
+  function setStatus(msg, ttl = 0) {
+    $('status').textContent = msg;
+    clearTimeout(statusTimer);
+    if (ttl) statusTimer = setTimeout(() => ($('status').textContent = ''), ttl);
+  }
+
+  // ── Tab rendering ──────────────────────────────────────────────────────────
+  function renderTabs() {
+    const container = $('tabs');
+    container.innerHTML = '';
+
+    if (!scripts.length) {
+      container.innerHTML =
+        '<span class="text-slate-600 text-sm self-center">No scripts — click "+ New Script" to create one</span>';
+      $('tab-actions').style.display = 'none';
+      return;
+    }
+
+    for (const s of scripts) {
+      const btn = document.createElement('button');
+      btn.className = `tab-btn flex items-center gap-1.5 px-3 py-1 rounded-md text-sm border whitespace-nowrap flex-shrink-0${s.id === selectedId ? ' active' : ''}`;
+      const name = document.createElement('span');
+      name.textContent = s.name;
+      btn.appendChild(name);
+      if (s.public) {
+        const globe = document.createElement('span');
+        globe.textContent = '🌐';
+        globe.style.fontSize = '10px';
+        btn.appendChild(globe);
+      }
+      btn.onclick = () => selectScript(s.id);
+      container.appendChild(btn);
+    }
+
+    $('tab-actions').style.display = selectedId ? 'flex' : 'none';
+  }
+
+  function selectScript(id) {
+    selectedId = id;
+    const s = find(id);
+    if (s) setTrigger(s.trigger);
+    renderTabs();
+    if ($('input-area').value) run('select-reload');
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
+  function openModal(id = null) {
+    editingId = id;
+    const s = id ? find(id) : null;
+    const isOwner = s?.authorId === myId;
+
+    $('modal-title').textContent = s ? 'Edit Script' : 'New Script';
+    $('f-name').value = s?.name || '';
+    $('f-code').value = s?.code || '';
+
+    const trigEl = document.querySelector(`input[name="f-trigger"][value="${s?.trigger || 'click'}"]`);
+    if (trigEl) trigEl.checked = true;
+
+    setPublishToggle(s?.public ?? false);
+
+    // Share URL: only for existing public scripts
+    if (s?.public) {
+      $('share-url').value = `${location.href.split('?')[0]}?script=${s.id}`;
+      $('share-row').style.display = 'flex';
+    } else {
+      $('share-row').style.display = 'none';
+    }
+
+    // Unpublish: only if owner of a public script
+    $('unpublish-row').style.display = (s?.public && isOwner) ? 'flex' : 'none';
+
+    $('modal').style.display = 'flex';
+    setTimeout(() => $('f-name').focus(), 40);
+  }
+
+  function closeModal() {
+    $('modal').style.display = 'none';
+    editingId = null;
+  }
+
+  // ── Publish toggle ─────────────────────────────────────────────────────────
+  function setPublishToggle(val) {
+    editPublic = val;
+    const track = $('publish-toggle');
+    const thumb = $('publish-thumb');
+    track.setAttribute('aria-checked', String(val));
+    track.style.background = val ? 'rgba(74,222,128,.22)' : 'rgba(100,116,139,.5)';
+    thumb.style.transform   = val ? 'translateX(20px)' : 'translateX(0)';
+    thumb.style.background  = val ? '#4ade80' : '#94a3b8';
+  }
+  $('publish-toggle').onclick = () => setPublishToggle(!editPublic);
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+  $('modal-save').onclick = async () => {
+    const name    = $('f-name').value.trim();
+    const code    = $('f-code').value.trim();
+    const trigger = document.querySelector('input[name="f-trigger"]:checked')?.value || 'click';
+
+    if (!name) { $('f-name').focus(); return; }
+    if (!code) { $('f-code').focus(); return; }
+
+    const now      = Date.now();
+    const existing = editingId ? find(editingId) : null;
+    const script   = {
+      id:        editingId || genId(),
+      name, code, trigger,
+      public:    editPublic,
+      authorId:  myId,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+
+    upsert(script);
+    closeModal();
+    renderTabs();
+    selectScript(script.id);
+
+    if (editPublic) {
+      setStatus('Publishing…');
+      try {
+        await serverPublish(script);
+        setStatus('Published — share the link via Edit > Copy.', 3000);
+      } catch {
+        setStatus('Saved locally. Publish failed — server may be unavailable.', 4000);
+      }
+    }
+  };
+
+  // ── Unpublish ──────────────────────────────────────────────────────────────
+  $('btn-unpublish').onclick = async () => {
+    const s = find(editingId);
+    if (!s || s.authorId !== myId) return;
+    setStatus('Unpublishing…');
+    try {
+      await serverUnpublish(s.id);
+      s.public = false;
+      upsert(s);
+      setStatus('Unpublished.', 2500);
+      closeModal();
+      renderTabs();
+    } catch {
+      setStatus('Failed — server may be unavailable.', 3000);
+    }
+  };
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  async function deleteScript(id) {
+    const s = find(id);
+    if (!s || !confirm(`Delete "${s.name}"?`)) return;
+    if (s.public && s.authorId === myId) {
+      try { await serverUnpublish(id); } catch {}
+    }
+    scripts = scripts.filter(x => x.id !== id);
+    writeLocal();
+    if (selectedId === id) selectedId = scripts[0]?.id || null;
+    renderTabs();
+    if (selectedId) selectScript(selectedId);
+    else $('output-area').value = '';
+  }
+
+  // ── URL param: load shared script ──────────────────────────────────────────
+  async function handleParam() {
+    const id = new URLSearchParams(location.search).get('script');
+    if (!id) return;
+    if (!find(id)) {
+      try {
+        const s = await kv.get(KV_KEY(id));
+        if (s) upsert(s);
+      } catch {}
+    }
+    if (find(id)) { renderTabs(); selectScript(id); }
+  }
+
+  // ── Event wiring ───────────────────────────────────────────────────────────
+  $('btn-new').onclick    = () => openModal(null);
+  $('btn-edit').onclick   = () => openModal(selectedId);
+  $('btn-delete').onclick = () => deleteScript(selectedId);
+  $('btn-run').onclick    = () => run('manual');
+  $('btn-clear').onclick  = () => { $('input-area').value = ''; $('output-area').value = ''; };
+
+  $('modal-close').onclick  = closeModal;
+  $('modal-cancel').onclick = closeModal;
+  $('modal').onclick        = e => { if (e.target === $('modal')) closeModal(); };
+
+  $('btn-copy-out').onclick = () => {
+    const t = $('output-area').value;
+    if (t) navigator.clipboard.writeText(t).then(() => setStatus('Copied!', 1500));
+  };
+  $('btn-copy-link').onclick = () => {
+    navigator.clipboard.writeText($('share-url').value).then(() => setStatus('Link copied!', 1500));
+  };
+
+  document.querySelectorAll('input[name="trigger"]').forEach(r =>
+    r.addEventListener('change', syncRunBtn)
+  );
+
+  const inputEl = $('input-area');
+  inputEl.addEventListener('input', () => {
+    if (getTrigger() !== 'input') return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => run('input'), 300);
+  });
+  inputEl.addEventListener('blur', () => run('blur'));
+  inputEl.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run('manual'); }
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  (async () => {
+    await loadAll();
+    await handleParam();
+    if (!selectedId && scripts.length) selectScript(scripts[0].id);
+    syncRunBtn();
+  })();
+  </script>
+</body>
+</html>

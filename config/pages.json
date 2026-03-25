@@ -4,6 +4,12 @@
   "_comment": "新增页面：在 pages 数组中添加一项，id 唯一，path 为相对根目录的路径（如 'xxx/' 或 'xxx.html'），category 可选。",
   "pages": [
     {
+      "path": "text-process/",
+      "title": "Text Process",
+      "description": "Run custom JS scripts on text — live, on blur, or manually. Share scripts via URL.",
+      "category": "开发"
+    },
+    {
       "path": "jwt/",
       "title": "JWT Decoder",
       "description": "解码与校验 JWT，查看 Header / Payload / Signature。",
