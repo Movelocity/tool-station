@@ -150,6 +150,10 @@
     }
     .idx-chip:hover { background: #334155; color: #e2e8f0; border-color: #475569; }
     .idx-chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .idx-chip.minimized { border-style: dashed; color: #64748b; }
+    .idx-chip.minimized:hover { color: #e2e8f0; }
+
+    .json-pane.pane-minimized { display: none; }
 
     #addPaneBtn {
       flex-shrink: 0;
@@ -253,6 +257,7 @@
       const title = data?.title       || `Pane ${paneIdSeq}`;
       const content     = data?.content     || '';
       const highlightOn = data?.highlightOn || false;
+      const minimized   = data?.minimized   || false;
       const wordWrap    = data?.wordWrap !== false;   // 默认开启换行
       const height = data?.height || DEFAULT_HEIGHT;
       const width  = data?.width  || DEFAULT_WIDTH;
@@ -271,10 +276,10 @@
         <div class="pane-titlebar flex items-center justify-between px-3 py-2 bg-slate-800/80 border-b border-slate-700 gap-2">
           <input type="text" class="pane-title-input bg-transparent text-slate-200 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 min-w-0 flex-1" value="${esc(title)}" placeholder="标题..." readonly>
           <div class="flex items-center gap-1 flex-shrink-0">
-            <button class="pane-btn edit-title-btn" title="编辑标题">✎</button>
             <button class="pane-btn format-btn hidden" title="格式化选中 JSON">格式化</button>
             <button class="pane-btn hl-toggle${highlightOn ? ' active' : ''}" title="切换高亮模式">高亮</button>
             <button class="pane-btn wrap-toggle active" title="切换自动换行">换行</button>
+            <button class="minimize-pane-btn pane-btn" title="最小化">−</button>
             <button class="delete-pane-btn pane-btn danger" title="删除窗格">✕</button>
           </div>
         </div>
@@ -294,7 +299,7 @@
       const hlToggle     = pane.querySelector('.hl-toggle');
       const wrapToggle   = pane.querySelector('.wrap-toggle');
       const formatBtn    = pane.querySelector('.format-btn');
-      const editTitleBtn = pane.querySelector('.edit-title-btn');
+      const minimizeBtn  = pane.querySelector('.minimize-pane-btn');
       const deleteBtn    = pane.querySelector('.delete-pane-btn');
       const paneContent  = pane.querySelector('.pane-content');
       const resizeHandle = pane.querySelector('.resize-handle');
@@ -302,6 +307,9 @@
       if (highlightOn) {
         paneContent.classList.add('pane-highlight-on');
         refreshHighlight(pane);
+      }
+      if (minimized) {
+        pane.classList.add('pane-minimized');
       }
       if (!wordWrap) {
         paneContent.classList.add('pane-nowrap');
@@ -338,22 +346,13 @@
 
       function enterTitleEdit() {
         titleInput.removeAttribute('readonly');
-        editTitleBtn.classList.add('active');
         titleInput.focus();
         titleInput.select();
       }
       function exitTitleEdit() {
         titleInput.setAttribute('readonly', '');
-        editTitleBtn.classList.remove('active');
       }
 
-      editTitleBtn.addEventListener('click', () => {
-        if (titleInput.hasAttribute('readonly')) {
-          enterTitleEdit();
-        } else {
-          exitTitleEdit();
-        }
-      });
       titleInput.addEventListener('blur', () => { exitTitleEdit(); });
       titleInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === 'Escape') { exitTitleEdit(); e.preventDefault(); }
@@ -421,6 +420,13 @@
       // ── 内容变化保存 ──
       textarea.addEventListener('input', debouncedSave);
 
+      // ── 最小化 ──
+      minimizeBtn.addEventListener('click', () => {
+        pane.classList.add('pane-minimized');
+        scheduleSave(pane);
+        refreshIndex();
+      });
+
       // ── 删除 ──
       deleteBtn.addEventListener('click', async () => {
         if (document.querySelectorAll('.json-pane').length > 1) {
@@ -455,6 +461,7 @@
         title:       pane.querySelector('.pane-title-input').value,
         content:     pane.querySelector('.editor-textarea').value,
         highlightOn: pane.querySelector('.pane-content').classList.contains('pane-highlight-on'),
+        minimized:   pane.classList.contains('pane-minimized'),
         wordWrap:    !pane.querySelector('.pane-content').classList.contains('pane-nowrap'),
         height:      pane.querySelector('.pane-content').offsetHeight,
         width:       pane.offsetWidth,
@@ -472,11 +479,12 @@
       panes.forEach(p => {
         const id = p.dataset.paneId;
         const title = p.querySelector('.pane-title-input').value || 'Pane';
+        const isMin = p.classList.contains('pane-minimized');
         const chip = document.createElement('span');
-        chip.className = 'idx-chip';
+        chip.className = 'idx-chip' + (isMin ? ' minimized' : '');
         chip.dataset.paneId = id;
         chip.textContent = title;
-        chip.title = title;
+        chip.title = isMin ? `${title} (最小化)` : title;
         chip.addEventListener('click', () => focusPane(id));
         container.appendChild(chip);
       });
@@ -491,6 +499,11 @@
     function focusPane(id) {
       const pane = document.querySelector(`.json-pane[data-pane-id="${id}"]`);
       if (!pane) return;
+      if (pane.classList.contains('pane-minimized')) {
+        pane.classList.remove('pane-minimized');
+        scheduleSave(pane);
+        refreshIndex();
+      }
       JsonVDrag.bringToFront(pane);
       setActiveChip(id);
       // 滚动画布使窗格居中可见
