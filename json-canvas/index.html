@@ -131,6 +131,11 @@
       border-bottom: 1px solid #1e293b;
       display: flex; align-items: center;
       padding: 0 16px; gap: 12px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #topBar.drag-minimize-ready {
+      background: rgba(37,99,235,.35);
+      border-bottom-color: #2563eb;
     }
     #topBar h1 { font-size: 16px; font-weight: 600; color: #f1f5f9; white-space: nowrap; }
 
@@ -333,6 +338,11 @@
         canvas: document.getElementById('canvas'),
         onMoved: () => scheduleSave(pane),
         onFocus: () => { setActiveChip(id); scheduleSave(pane); },
+        onMinimize: () => {
+          pane.classList.add('pane-minimized');
+          scheduleSave(pane);
+          refreshIndex();
+        },
       });
 
       // ── 拖拽调整高度 ──
@@ -375,47 +385,47 @@
       });
 
       // ── 格式化按钮 ──
-      formatBtn.addEventListener('click', () => {
-        const sel = paneSelections[id];
-        if (!sel) return;
-        try {
-          const formatted = JSON.stringify(JSON.parse(sel.text), null, 2);
-          textarea.value = textarea.value.substring(0, sel.start) + formatted + textarea.value.substring(sel.end);
-          textarea.focus();
-          textarea.setSelectionRange(sel.start, sel.start + formatted.length);
-          paneSelections[id] = null;
-          formatBtn.classList.add('hidden');
-          if (paneContent.classList.contains('pane-highlight-on')) refreshHighlight(pane);
-          scheduleSave(pane);
-          showToast('JSON 格式化成功', 'success');
-        } catch (err) {
-          showToast('无效的 JSON: ' + err.message, 'error');
-        }
-      });
+      // formatBtn.addEventListener('click', () => {
+      //   const sel = paneSelections[id];
+      //   if (!sel) return;
+      //   try {
+      //     const formatted = JSON.stringify(JSON.parse(sel.text), null, 2);
+      //     textarea.value = textarea.value.substring(0, sel.start) + formatted + textarea.value.substring(sel.end);
+      //     textarea.focus();
+      //     textarea.setSelectionRange(sel.start, sel.start + formatted.length);
+      //     paneSelections[id] = null;
+      //     formatBtn.classList.add('hidden');
+      //     if (paneContent.classList.contains('pane-highlight-on')) refreshHighlight(pane);
+      //     scheduleSave(pane);
+      //     showToast('JSON 格式化成功', 'success');
+      //   } catch (err) {
+      //     showToast('无效的 JSON: ' + err.message, 'error');
+      //   }
+      // });
 
       // ── 文本选择 → 显示/隐藏格式化按钮 ──
-      function checkSelection() {
-        const s = textarea.selectionStart;
-        const e = textarea.selectionEnd;
-        const text = textarea.value.substring(s, e);
-        if (text.trim().length > 0) {
-          paneSelections[id] = { textarea, start: s, end: e, text };
-          formatBtn.classList.remove('hidden');
-        } else {
-          paneSelections[id] = null;
-          formatBtn.classList.add('hidden');
-        }
-      }
-      textarea.addEventListener('select', checkSelection);
-      textarea.addEventListener('mouseup', checkSelection);
-      textarea.addEventListener('keyup', checkSelection);
-      textarea.addEventListener('blur', () => {
-        setTimeout(() => {
-          if (document.activeElement !== formatBtn) {
-            formatBtn.classList.add('hidden');
-          }
-        }, 150);
-      });
+      // function checkSelection() {
+      //   const s = textarea.selectionStart;
+      //   const e = textarea.selectionEnd;
+      //   const text = textarea.value.substring(s, e);
+      //   if (text.trim().length > 0) {
+      //     paneSelections[id] = { textarea, start: s, end: e, text };
+      //     formatBtn.classList.remove('hidden');
+      //   } else {
+      //     paneSelections[id] = null;
+      //     formatBtn.classList.add('hidden');
+      //   }
+      // }
+      // textarea.addEventListener('select', checkSelection);
+      // textarea.addEventListener('mouseup', checkSelection);
+      // textarea.addEventListener('keyup', checkSelection);
+      // textarea.addEventListener('blur', () => {
+      //   setTimeout(() => {
+      //     if (document.activeElement !== formatBtn) {
+      //       formatBtn.classList.add('hidden');
+      //     }
+      //   }, 150);
+      // });
 
       // ── 内容变化保存 ──
       textarea.addEventListener('input', debouncedSave);

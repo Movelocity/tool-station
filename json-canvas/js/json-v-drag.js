@@ -58,11 +58,20 @@ const JsonVDrag = (() => {
 
       bringToFront(paneEl);
       if (typeof opts.onFocus === 'function') opts.onFocus();
+      minimizeTriggered = false;
 
       document.body.style.cursor = 'grabbing';
       document.body.style.userSelect = 'none';
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+    }
+
+    const topBarHeight = opts.topBarHeight ?? 48;
+    let minimizeTriggered = false;
+
+    function setTopBarHighlight(on) {
+      const bar = document.getElementById('topBar');
+      if (bar) bar.classList.toggle('drag-minimize-ready', on);
     }
 
     function onMove(e) {
@@ -74,15 +83,32 @@ const JsonVDrag = (() => {
       paneEl.style.left = newLeft + 'px';
       paneEl.style.top = newTop + 'px';
       expandCanvas(canvas, paneEl);
+
+      // Collision with top banner: highlight when near, minimize when crossed
+      if (e.clientY < topBarHeight) {
+        setTopBarHighlight(true);
+        if (!minimizeTriggered) {
+          minimizeTriggered = true;
+          stopDrag();
+          if (typeof opts.onMinimize === 'function') opts.onMinimize();
+        }
+      } else {
+        setTopBarHighlight(false);
+      }
     }
 
-    function onUp() {
-      if (!dragging) return;
+    function stopDrag() {
       dragging = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      setTopBarHighlight(false);
+    }
+
+    function onUp() {
+      if (!dragging) return;
+      stopDrag();
       expandCanvas(canvas, paneEl);
       if (typeof opts.onMoved === 'function') {
         opts.onMoved(parseInt(paneEl.style.left, 10), parseInt(paneEl.style.top, 10));
