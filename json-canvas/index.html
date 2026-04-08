@@ -322,8 +322,10 @@
       }
 
       // ── 标题双击编辑 ──
-      titleInput.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
+      titleBar.addEventListener('dblclick', (e) => {
+        const rect = titleInput.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right ||
+            e.clientY < rect.top  || e.clientY > rect.bottom) return;
         enterTitleEdit();
       });
 
