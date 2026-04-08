@@ -321,16 +321,10 @@
         wrapToggle.classList.remove('active');
       }
 
-      // ── 标题点击编辑（在 drag 绑定前注册，保证 doc.mouseup 先于 drag 的触发） ──
-      titleBar.addEventListener('mousedown', (e) => {
-        const rect = titleInput.getBoundingClientRect();
-        if (e.clientX < rect.left || e.clientX > rect.right ||
-            e.clientY < rect.top  || e.clientY > rect.bottom) return;
-        const downX = e.clientX, downY = e.clientY;
-        document.addEventListener('mouseup', function onceUp(ev) {
-          document.removeEventListener('mouseup', onceUp);
-          if (Math.hypot(ev.clientX - downX, ev.clientY - downY) < 5) enterTitleEdit();
-        });
+      // ── 标题双击编辑 ──
+      titleInput.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        enterTitleEdit();
       });
 
       // ── 拖拽移动 ──
