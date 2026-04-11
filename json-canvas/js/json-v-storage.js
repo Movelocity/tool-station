@@ -3,7 +3,7 @@
  * 窗格内容持久化：IndexedDB 存大文本，localStorage 存轻量索引。
  *
  * 索引结构（localStorage key: "jsonv_index"）：
- *   [{ id, title, highlightOn, height, width, x, y, zIndex, updatedAt }, ...]
+ *   [{ id, title, hlMode, height, width, x, y, zIndex, updatedAt }, ...]
  *
  * IndexedDB（db: "JsonViewerDB", store: "panes"）：
  *   key = pane id，value = { id, content }
@@ -106,7 +106,7 @@ const JsonVStorage = (() => {
   /**
    * 保存窗格（内容 + 索引元数据）
    * @param {string} id
-   * @param {{ title, content, highlightOn, height, width, x, y, zIndex }} meta
+   * @param {{ title, content, hlMode, height, width, x, y, zIndex }} meta
    */
   async function savePane(id, meta) {
     const { content, ...indexFields } = meta;
@@ -122,7 +122,7 @@ const JsonVStorage = (() => {
 
   /**
    * 加载全部窗格数据
-   * @returns {Promise<Array<{ id, title, content, highlightOn, height, width, x, y, zIndex }>>}
+   * @returns {Promise<Array<{ id, title, content, hlMode, height, width, x, y, zIndex }>>}
    */
   async function loadAll() {
     const index = loadIndex();

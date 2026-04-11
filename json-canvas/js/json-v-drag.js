@@ -46,8 +46,8 @@ const JsonVDrag = (() => {
     function onDown(e) {
       // 不拦截 input / button / svg 上的交互
       const tag = e.target.tagName.toLowerCase();
-      if (['input', 'button', 'svg', 'path', 'textarea'].includes(tag)) return;
-      if (e.target.closest('button')) return;
+      if (['input', 'button', 'svg', 'path', 'textarea', 'select', 'option'].includes(tag)) return;
+      if (e.target.closest('button, select')) return;
 
       e.preventDefault();
       dragging = true;

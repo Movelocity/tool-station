@@ -30,6 +30,50 @@
     .json-boolean { color: #c4b5fd; }
     .json-null    { color: #f87171; }
 
+    /* Shell 语法颜色 */
+    .sh-comment  { color: #64748b; font-style: italic; }
+    .sh-string   { color: #86efac; }
+    .sh-var      { color: #fcd34d; }
+    .sh-keyword  { color: #c4b5fd; font-weight: 600; }
+
+    /* Markdown 语法颜色 */
+    .md-h1, .md-h2, .md-h3, .md-h4, .md-h5, .md-h6 { color: #7dd3fc; font-weight: 700; }
+    .md-h1 { font-size: 1.2em; }
+    .md-bold       { color: #f1f5f9; font-weight: 700; }
+    .md-italic     { color: #e2e8f0; font-style: italic; }
+    .md-code       { color: #fcd34d; background: rgba(255,255,255,.07); border-radius: 3px; }
+    .md-blockquote { color: #94a3b8; border-left: 3px solid #475569; padding-left: 8px; }
+    .md-bullet     { color: #c4b5fd; }
+    .md-strike     { color: #64748b; text-decoration: line-through; }
+    .md-link-text  { color: #7dd3fc; }
+    .md-url        { color: #86efac; }
+    .md-hr         { color: #475569; }
+
+    /* hl-select 下拉 */
+    .hl-select {
+      padding: 2px 4px; font-size: 12px; border-radius: 4px;
+      border: 1px solid #475569; background: #1e293b;
+      color: #94a3b8; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .hl-select:hover { border-color: #64748b; color: #e2e8f0; }
+    /* .hl-select.active { background: #1e3a5f; border-color: #2563eb; color: #7dd3fc; } */
+
+    /* 自定义高亮模式下拉菜单 */
+    #hlDropdown {
+      position: fixed; z-index: 999999;
+      background: #1e293b; border: 1px solid #475569; border-radius: 4px;
+      padding: 2px 0; min-width: 80px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+      display: none;
+    }
+    .hl-drop-item {
+      padding: 4px 10px; font-size: 12px; cursor: pointer;
+      color: #94a3b8; white-space: nowrap; transition: background 0.1s;
+    }
+    .hl-drop-item:hover { background: #334155; color: #e2e8f0; }
+    .hl-drop-item.selected { color: #7dd3fc; }
+
     /* ── 无限画布 ── */
     #canvas {
       position: absolute;
@@ -117,7 +161,7 @@
       white-space: nowrap;
     }
     .pane-btn:hover { border-color: #64748b; color: #e2e8f0; }
-    .pane-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .pane-btn.active { border-color: #2563eb; }
     .pane-btn.danger { border-color: #7f1d1d; color: #f87171; }
     .pane-btn.danger:hover { background: #7f1d1d; color: #fff; }
     .pane-btn.format-btn { border-color: #047857; color: #34d399; }
@@ -199,6 +243,14 @@
     <div id="canvas"></div>
   </div>
 
+  <!-- 高亮模式自定义下拉 -->
+  <div id="hlDropdown">
+    <div class="hl-drop-item" data-value="">Raw</div>
+    <div class="hl-drop-item" data-value="json">JSON</div>
+    <div class="hl-drop-item" data-value="shell">Shell</div>
+    <div class="hl-drop-item" data-value="markdown">MD</div>
+  </div>
+
   <!-- Toast 提示 -->
   <div id="toast" class="toast fixed bottom-6 right-6 z-[99999] px-4 py-3 rounded-lg shadow-lg hidden"
     style="background: #1e293b; border: 1px solid #334155;">
@@ -223,6 +275,43 @@
     function debounce(fn, ms) {
       let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
     }
+
+    // ── 高亮模式自定义下拉 ──
+    let _hlDropdownCallback = null;
+    let _hlDropdownBtn = null;
+
+    function openHlDropdown(btn, currentMode, onSelect) {
+      const dropdown = document.getElementById('hlDropdown');
+      _hlDropdownBtn = btn;
+      _hlDropdownCallback = onSelect;
+      const rect = btn.getBoundingClientRect();
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.top  = (rect.bottom + 2) + 'px';
+      dropdown.querySelectorAll('.hl-drop-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.value === currentMode);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    function closeHlDropdown() {
+      document.getElementById('hlDropdown').style.display = 'none';
+      _hlDropdownBtn = null;
+      _hlDropdownCallback = null;
+    }
+
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('hlDropdown');
+      if (!dropdown) return;
+      const item = e.target.closest('.hl-drop-item');
+      if (item && dropdown.contains(item)) {
+        if (_hlDropdownCallback) _hlDropdownCallback(item.dataset.value);
+        closeHlDropdown();
+        return;
+      }
+      if (e.target !== _hlDropdownBtn && !dropdown.contains(e.target)) {
+        closeHlDropdown();
+      }
+    });
 
     // ── 初始化 ──
     document.addEventListener('DOMContentLoaded', async () => {
@@ -262,7 +351,7 @@
       const id    = data?.id          || `pane-${Date.now()}-${paneIdSeq}`;
       const title = data?.title       || `Pane ${paneIdSeq}`;
       const content     = data?.content     || '';
-      const highlightOn = data?.highlightOn || false;
+      const hlMode      = data?.hlMode || (data?.highlightOn ? 'json' : '');
       const minimized   = data?.minimized   || false;
       const wordWrap    = data?.wordWrap !== false;   // 默认开启换行
       const height = data?.height || DEFAULT_HEIGHT;
@@ -283,8 +372,8 @@
           <input type="text" class="pane-title-input bg-transparent text-slate-200 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 min-w-0 flex-1" value="${esc(title)}" placeholder="标题..." readonly>
           <div class="flex items-center gap-1 flex-shrink-0">
             <button class="pane-btn format-btn hidden" title="格式化选中 JSON">格式化</button>
-            <button class="pane-btn hl-toggle${highlightOn ? ' active' : ''}" title="切换高亮模式">高亮</button>
-            <button class="pane-btn wrap-toggle active" title="切换自动换行">换行</button>
+            <button class="hl-select${hlMode ? ' active' : ''}" title="选择高亮模式" data-hl-mode="${hlMode}">${hlMode === 'json' ? 'JSON' : hlMode === 'shell' ? 'Shell' : hlMode === 'markdown' ? 'MD' : 'Raw'}</button>
+            <button class="pane-btn wrap-toggle active" title="切换自动换行">↵</button>
             <button class="minimize-pane-btn pane-btn" title="最小化">−</button>
             <button class="delete-pane-btn pane-btn danger" title="删除窗格">✕</button>
           </div>
@@ -302,7 +391,7 @@
       const titleBar     = pane.querySelector('.pane-titlebar');
       const titleInput   = pane.querySelector('.pane-title-input');
       const textarea     = pane.querySelector('.editor-textarea');
-      const hlToggle     = pane.querySelector('.hl-toggle');
+      const hlSelect     = pane.querySelector('.hl-select');
       const wrapToggle   = pane.querySelector('.wrap-toggle');
       const formatBtn    = pane.querySelector('.format-btn');
       const minimizeBtn  = pane.querySelector('.minimize-pane-btn');
@@ -310,7 +399,8 @@
       const paneContent  = pane.querySelector('.pane-content');
       const resizeHandle = pane.querySelector('.resize-handle');
 
-      if (highlightOn) {
+      if (hlMode) {
+        pane.dataset.hlMode = hlMode;
         paneContent.classList.add('pane-highlight-on');
         refreshHighlight(pane);
       }
@@ -373,12 +463,22 @@
         scheduleSave(pane);
       });
 
-      // ── 高亮开关 ──
-      hlToggle.addEventListener('click', () => {
-        const isOn = paneContent.classList.toggle('pane-highlight-on');
-        hlToggle.classList.toggle('active', isOn);
-        if (isOn) refreshHighlight(pane);
-        scheduleSave(pane);
+      // ── 高亮模式 ──
+      hlSelect.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openHlDropdown(hlSelect, hlSelect.dataset.hlMode, (mode) => {
+          hlSelect.dataset.hlMode = mode;
+          hlSelect.textContent = mode === 'json' ? 'JSON' : mode === 'shell' ? 'Shell' : mode === 'markdown' ? 'MD' : 'Raw';
+          pane.dataset.hlMode = mode;
+          hlSelect.classList.toggle('active', !!mode);
+          if (mode) {
+            paneContent.classList.add('pane-highlight-on');
+            refreshHighlight(pane);
+          } else {
+            paneContent.classList.remove('pane-highlight-on');
+          }
+          scheduleSave(pane);
+        });
       });
 
       // ── 格式化按钮 ──
@@ -459,7 +559,14 @@
     function refreshHighlight(pane) {
       const textarea = pane.querySelector('.editor-textarea');
       const view = pane.querySelector('.highlight-view');
-      view.innerHTML = JsonVHighlight.scanAndHighlight(textarea.value);
+      const mode = pane.dataset.hlMode || 'json';
+      if (mode === 'shell') {
+        view.innerHTML = JsonVHighlight.highlightShell(textarea.value);
+      } else if (mode === 'markdown') {
+        view.innerHTML = JsonVHighlight.highlightMarkdown(textarea.value);
+      } else {
+        view.innerHTML = JsonVHighlight.scanAndHighlight(textarea.value);
+      }
     }
 
     function scheduleSave(pane) {
@@ -467,7 +574,7 @@
       JsonVStorage.savePane(id, {
         title:       pane.querySelector('.pane-title-input').value,
         content:     pane.querySelector('.editor-textarea').value,
-        highlightOn: pane.querySelector('.pane-content').classList.contains('pane-highlight-on'),
+        hlMode:      pane.dataset.hlMode || '',
         minimized:   pane.classList.contains('pane-minimized'),
         wordWrap:    !pane.querySelector('.pane-content').classList.contains('pane-nowrap'),
         height:      pane.querySelector('.pane-content').offsetHeight,

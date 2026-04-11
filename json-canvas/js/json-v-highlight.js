@@ -122,5 +122,155 @@ const JsonVHighlight = (() => {
     return result || '<span class="text-slate-500">无内容</span>';
   }
 
-  return { escapeHtml, isValidJSON, extractJSON, syntaxHighlight, scanAndHighlight };
+  /**
+   * Shell/Bash 语法高亮。
+   * @param {string} text
+   * @returns {string} 带 <span class="sh-*"> 的 HTML
+   */
+  function highlightShell(text) {
+    if (!text.trim()) return '<span class="text-slate-500">无内容</span>';
+
+    const lines = text.split('\n');
+    const result = lines.map(line => {
+      // 注释行
+      if (/^\s*#/.test(line)) {
+        return `<span class="sh-comment">${escapeHtml(line)}</span>`;
+      }
+
+      let out = '';
+      let i = 0;
+      const raw = line;
+
+      while (i < raw.length) {
+        // 单行注释（非字符串内）
+        if (raw[i] === '#') {
+          out += `<span class="sh-comment">${escapeHtml(raw.slice(i))}</span>`;
+          break;
+        }
+        // 双引号字符串
+        if (raw[i] === '"') {
+          let j = i + 1;
+          while (j < raw.length && !(raw[j] === '"' && raw[j - 1] !== '\\')) j++;
+          if (j < raw.length) j++;
+          out += `<span class="sh-string">${escapeHtml(raw.slice(i, j))}</span>`;
+          i = j;
+          continue;
+        }
+        // 单引号字符串
+        if (raw[i] === "'") {
+          let j = i + 1;
+          while (j < raw.length && raw[j] !== "'") j++;
+          if (j < raw.length) j++;
+          out += `<span class="sh-string">${escapeHtml(raw.slice(i, j))}</span>`;
+          i = j;
+          continue;
+        }
+        // 变量 $VAR 或 ${VAR}
+        if (raw[i] === '$') {
+          const m = raw.slice(i).match(/^\$(\{[^}]*\}|[A-Za-z_][A-Za-z0-9_]*|\d+|[@#?$!*])/);
+          if (m) {
+            out += `<span class="sh-var">${escapeHtml(m[0])}</span>`;
+            i += m[0].length;
+            continue;
+          }
+        }
+        // 关键字
+        const kwMatch = raw.slice(i).match(/^(if|then|else|elif|fi|for|do|done|while|until|case|esac|in|function|return|export|local|readonly|shift|source|\.)\b/);
+        if (kwMatch && (i === 0 || /\W/.test(raw[i - 1]))) {
+          out += `<span class="sh-keyword">${escapeHtml(kwMatch[0])}</span>`;
+          i += kwMatch[0].length;
+          continue;
+        }
+        out += escapeHtml(raw[i]);
+        i++;
+      }
+      return out;
+    });
+
+    return result.join('\n');
+  }
+
+  /**
+   * Markdown 语法高亮。
+   * @param {string} text
+   * @returns {string} 带 <span class="md-*"> 的 HTML
+   */
+  function highlightMarkdown(text) {
+    if (!text.trim()) return '<span class="text-slate-500">无内容</span>';
+
+    // 处理代码块
+    const CODE_BLOCK_RE = /```[\s\S]*?```/g;
+    const INLINE_CODE_RE = /`[^`\n]+`/g;
+
+    const codeBlocks = [];
+    let processed = text.replace(CODE_BLOCK_RE, (m) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push(`<span class="md-code">${escapeHtml(m)}</span>`);
+      return `\x00CODE${idx}\x00`;
+    });
+    processed = processed.replace(INLINE_CODE_RE, (m) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push(`<span class="md-code">${escapeHtml(m)}</span>`);
+      return `\x00CODE${idx}\x00`;
+    });
+
+    const lines = processed.split('\n');
+    const result = lines.map(line => {
+      let out = line;
+
+      // 标题
+      const hMatch = out.match(/^(#{1,6})\s(.+)/);
+      if (hMatch) {
+        const level = hMatch[1].length;
+        const inner = hMatch[2];
+        return `<span class="md-h${level}">${escapeHtml(hMatch[1])} ${escapeHtml(inner)}</span>`;
+      }
+
+      // 块引用
+      if (/^\s*>/.test(out)) {
+        return `<span class="md-blockquote">${escapeHtml(out)}</span>`;
+      }
+
+      // 水平线
+      if (/^\s*([-*_])\s*\1\s*\1/.test(out)) {
+        return `<span class="md-hr">${escapeHtml(out)}</span>`;
+      }
+
+      // 列表项标记
+      out = out.replace(/^(\s*)([-*+]|\d+\.)(\s)/, (m, sp, bullet, s) =>
+        `${sp}<span class="md-bullet">${escapeHtml(bullet)}</span>${s}`
+      );
+
+      // 粗斜体 ***
+      out = out.replace(/\*\*\*([^*\n]+)\*\*\*/g, (_, t) =>
+        `<span class="md-bold md-italic">***${escapeHtml(t)}***</span>`
+      );
+      // 粗体 **
+      out = out.replace(/\*\*([^*\n]+)\*\*/g, (_, t) =>
+        `<span class="md-bold">**${escapeHtml(t)}**</span>`
+      );
+      // 斜体 *
+      out = out.replace(/\*([^*\n]+)\*/g, (_, t) =>
+        `<span class="md-italic">*${escapeHtml(t)}*</span>`
+      );
+      // 删除线
+      out = out.replace(/~~([^~\n]+)~~/g, (_, t) =>
+        `<span class="md-strike">~~${escapeHtml(t)}~~</span>`
+      );
+      // 链接 [text](url)
+      out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, url) =>
+        `[<span class="md-link-text">${escapeHtml(t)}</span>](<span class="md-url">${escapeHtml(url)}</span>)`
+      );
+
+      // 恢复普通字符的转义（非代码块区域已处理）
+      return out;
+    });
+
+    let html = result.join('\n');
+    // 还原代码块
+    html = html.replace(/\x00CODE(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx)]);
+    return html;
+  }
+
+  return { escapeHtml, isValidJSON, extractJSON, syntaxHighlight, scanAndHighlight, highlightShell, highlightMarkdown };
 })();
