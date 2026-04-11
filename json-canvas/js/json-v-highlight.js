@@ -210,7 +210,7 @@ const JsonVHighlight = (() => {
     });
     processed = processed.replace(INLINE_CODE_RE, (m) => {
       const idx = codeBlocks.length;
-      codeBlocks.push(`<span class="md-code">${escapeHtml(m)}</span>`);
+      codeBlocks.push(`<span class="md-code">${escapeHtml(m).replace(/`/g, '')}</span>`);
       return `\x00CODE${idx}\x00`;
     });
 
@@ -243,11 +243,11 @@ const JsonVHighlight = (() => {
 
       // 粗斜体 ***
       out = out.replace(/\*\*\*([^*\n]+)\*\*\*/g, (_, t) =>
-        `<span class="md-bold md-italic">***${escapeHtml(t)}***</span>`
+        `<span class="md-bold md-italic">${escapeHtml(t)}</span>`
       );
       // 粗体 **
       out = out.replace(/\*\*([^*\n]+)\*\*/g, (_, t) =>
-        `<span class="md-bold">**${escapeHtml(t)}**</span>`
+        `<span class="md-bold">${escapeHtml(t)}</span>`
       );
       // 斜体 *
       // out = out.replace(/\*([^*\n]+)\*/g, (_, t) =>
@@ -255,7 +255,7 @@ const JsonVHighlight = (() => {
       // );
       // 删除线
       out = out.replace(/~~([^~\n]+)~~/g, (_, t) =>
-        `<span class="md-strike">~~${escapeHtml(t)}~~</span>`
+        `<span class="md-strike">${escapeHtml(t)}</span>`
       );
       // 链接 [text](url)
       out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, url) =>
