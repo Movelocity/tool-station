@@ -250,9 +250,9 @@ const JsonVHighlight = (() => {
         `<span class="md-bold">**${escapeHtml(t)}**</span>`
       );
       // 斜体 *
-      out = out.replace(/\*([^*\n]+)\*/g, (_, t) =>
-        `<span class="md-italic">*${escapeHtml(t)}*</span>`
-      );
+      // out = out.replace(/\*([^*\n]+)\*/g, (_, t) =>
+      //   `<span class="md-italic">*${escapeHtml(t)}*</span>`
+      // );
       // 删除线
       out = out.replace(/~~([^~\n]+)~~/g, (_, t) =>
         `<span class="md-strike">~~${escapeHtml(t)}~~</span>`
