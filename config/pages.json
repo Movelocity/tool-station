@@ -4,9 +4,15 @@
   "_comment": "新增页面：在 pages 数组中添加一项，id 唯一，path 为相对根目录的路径（如 'xxx/' 或 'xxx.html'），category 可选。",
   "pages": [
     {
+      "path": "coze-workflow-view/",
+      "title": "Coze Workflow Viewer",
+      "description": "Upload .coze-workflow.json to visualize nodes, edges, and workflow canvas.",
+      "category": "开发"
+    },
+    {
       "path": "text-process/",
-      "title": "Text Process",
-      "description": "Run custom JS scripts on text — live, on blur, or manually. Share scripts via URL.",
+      "title": "文本处理工具",
+      "description": "Scriptable文本处理工具，支持多种文本处理方式。",
       "category": "开发"
     },
     {
@@ -29,14 +35,14 @@
     },
     {
       "path": "qr-reader/",
-      "title": "QR Code Reader",
+      "title": "二维码扫描",
       "description": "Upload an image to decode the text behind a QR code.",
       "category": "工具"
     },
     {
-      "path": "json-canvas/",
-      "title": "卡片笔记 JSON 画布",
-      "description": "卡片笔记 JSON 画布，拖拽、缩放、裁剪。",
+      "path": "text-cards/",
+      "title": "卡片笔记",
+      "description": "卡片笔记，拖拽、缩放、裁剪。",
       "category": "开发"
     },
     {

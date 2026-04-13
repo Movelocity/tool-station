@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coze Workflow Viewer</title>
+  <script src="/lib/tailwind.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { dark: { 900:'#0f172a', 800:'#1e293b', 700:'#334155', 600:'#475569' } } } }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    /* ── Canvas ── */
+    #canvas-viewport { overflow: hidden; cursor: grab; user-select: none; }
+    #canvas-viewport.panning { cursor: grabbing; }
+    #canvas-world { position: relative; transform-origin: 0 0; }
+
+    /* ── Compact node card ── */
+    .node-card {
+      position: absolute;
+      width: 160px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      cursor: pointer;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .node-card:hover { border-color: #475569; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+    .node-card.selected {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99,102,241,.28), 0 4px 14px rgba(0,0,0,.5);
+    }
+    .node-card.node-dragging { cursor: grabbing; opacity: .85; z-index: 100; }
+    .node-header {
+      padding: 8px 10px;
+      border-left: 3px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .node-badge {
+      display: inline-block;
+      font-size: 9px; font-weight: 700; letter-spacing: .07em;
+      padding: 1px 5px; border-radius: 3px; width: fit-content;
+      font-family: monospace;
+    }
+    .node-title {
+      font-size: 12px; font-weight: 600; color: #f1f5f9; line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── Detail drawer ── */
+    #detail-drawer {
+      position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
+      background: #1e293b; border-left: 1px solid #334155;
+      transform: translateX(100%);
+      transition: transform .22s cubic-bezier(.4,0,.2,1);
+      overflow-y: auto; z-index: 20;
+    }
+    #detail-drawer.open { transform: translateX(0); }
+    .drawer-section { padding: 12px 16px; border-bottom: 1px solid #334155; }
+    .drawer-section:last-child { border-bottom: none; }
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      color: #64748b; text-transform: uppercase; margin-bottom: 8px;
+    }
+    .param-row {
+      display: flex; align-items: flex-start; flex-wrap: wrap; gap: 5px;
+      padding: 4px 0; border-bottom: 1px solid #0f172a; font-size: 11px; line-height: 1.5;
+    }
+    .param-row:last-child { border-bottom: none; }
+    .param-name { color: #7dd3fc; font-family: monospace; flex-shrink: 0; }
+    .param-type { color: #64748b; flex-shrink: 0; }
+    .param-ref  { color: #a78bfa; font-family: monospace; font-size: 10px; word-break: break-all; }
+    .param-val  { color: #86efac; font-family: monospace; font-size: 10px; }
+    .code-block {
+      background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 11px; line-height: 1.65; color: #94a3b8;
+      white-space: pre; overflow-x: auto; max-height: 280px; overflow-y: auto; margin: 0;
+    }
+    .drawer-close {
+      width: 24px; height: 24px; border-radius: 5px;
+      background: transparent; border: 1px solid #334155;
+      color: #64748b; cursor: pointer; font-size: 16px; line-height: 1;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background .1s, color .1s;
+    }
+    .drawer-close:hover { background: #334155; color: #f1f5f9; }
+
+    /* ── Upload ── */
+    .drop-zone {
+      border: 2px dashed #334155; border-radius: 12px;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone.drag-over { border-color: #6366f1; background: rgba(99,102,241,.07); }
+  </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-dark-700 bg-dark-800 flex-shrink-0">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/" class="text-gray-400 hover:text-white transition-colors text-sm">←</a>
+        <div>
+          <h1 class="text-sm font-semibold text-white">Coze Workflow Viewer</h1>
+          <p class="text-xs text-gray-500">Upload .coze-workflow.json to visualize</p>
+        </div>
+      </div>
+      <div id="file-info" class="hidden items-center gap-2">
+        <span id="file-name" class="text-xs text-gray-500 font-mono max-w-xs truncate"></span>
+        <button onclick="resetToUpload()" class="text-xs px-2 py-1 text-gray-400 hover:text-white hover:bg-dark-700 rounded transition-colors">New File</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Upload Zone -->
+  <div id="upload-zone" class="flex-1 flex items-center justify-center p-8">
+    <label class="drop-zone w-full max-w-md p-12 flex flex-col items-center gap-4 cursor-pointer"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event); this.classList.remove('drag-over')">
+      <svg class="text-gray-600" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+      </svg>
+      <div class="text-center">
+        <p class="text-gray-300 font-medium">Drop workflow file here</p>
+        <p class="text-gray-500 text-sm mt-1">or click to browse</p>
+        <p class="text-gray-600 text-xs mt-3 font-mono">.coze-workflow.json</p>
+      </div>
+      <input type="file" accept=".json" class="hidden" onchange="handleFileInput(event)">
+    </label>
+  </div>
+
+  <!-- Workflow View -->
+  <div id="workflow-view" class="hidden flex-1 flex-col overflow-hidden">
+    <!-- Metadata bar -->
+    <div class="flex-shrink-0 bg-dark-800 border-b border-dark-700 px-4 py-2 flex items-center gap-4 overflow-x-auto">
+      <div class="flex-shrink-0">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Name</p>
+        <p id="meta-name" class="text-sm font-semibold text-white">-</p>
+      </div>
+      <div class="w-px h-8 bg-dark-700 flex-shrink-0"></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Description</p>
+        <p id="meta-desc" class="text-sm text-gray-300 truncate">-</p>
+      </div>
+      <div class="w-px h-8 bg-dark-700 flex-shrink-0"></div>
+      <div class="flex-shrink-0">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Exported</p>
+        <p id="meta-time" class="text-xs text-gray-400 font-mono">-</p>
+      </div>
+      <div class="w-px h-8 bg-dark-700 flex-shrink-0"></div>
+      <div class="flex-shrink-0">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Nodes</p>
+        <p id="meta-nodes" class="text-sm font-semibold text-indigo-400">-</p>
+      </div>
+      <div class="w-px h-8 bg-dark-700 flex-shrink-0"></div>
+      <div class="flex-shrink-0">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Edges</p>
+        <p id="meta-edges" class="text-sm font-semibold text-indigo-400">-</p>
+      </div>
+    </div>
+
+    <!-- Canvas area -->
+    <div class="flex-1 relative overflow-hidden">
+      <div id="canvas-viewport" class="absolute inset-0">
+        <div id="canvas-world"></div>
+      </div>
+
+      <!-- Detail drawer (sibling of viewport, inside the relative container) -->
+      <div id="detail-drawer">
+        <div id="drawer-content"></div>
+      </div>
+
+      <!-- Legend top-left -->
+      <div class="absolute top-3 left-3 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 flex gap-3 z-10 pointer-events-none">
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:#22c55e"></span><span class="text-xs text-gray-400">Start</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:#f97316"></span><span class="text-xs text-gray-400">End</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:#06b6d4"></span><span class="text-xs text-gray-400">Code</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:#a855f7"></span><span class="text-xs text-gray-400">Loop</span></div>
+      </div>
+
+      <!-- Controls bottom-left -->
+      <div class="absolute bottom-4 left-3 flex flex-col gap-1 z-10">
+        <button id="mode-btn" onclick="toggleInputMode()" title="Switch input mode"
+          class="h-8 px-2.5 bg-dark-800 border border-dark-700 rounded text-xs text-gray-400 hover:text-white hover:bg-dark-700 transition-colors whitespace-nowrap">Mouse</button>
+        <button onclick="autoLayout()" title="Auto layout"
+          class="h-8 px-2.5 bg-dark-800 border border-dark-700 rounded text-xs text-gray-400 hover:text-white hover:bg-dark-700 transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="9" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/>
+            <rect x="16" y="15" width="6" height="6" rx="1"/>
+            <line x1="8" y1="12" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="18"/>
+          </svg>
+          Auto Layout
+        </button>
+        <button onclick="fitView()" title="Fit all"
+          class="w-8 h-8 bg-dark-800 border border-dark-700 rounded text-gray-400 hover:text-white hover:bg-dark-700 transition-colors flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+          </svg>
+        </button>
+        <button onclick="applyZoom(1.2)"
+          class="w-8 h-8 bg-dark-800 border border-dark-700 rounded text-gray-300 hover:text-white hover:bg-dark-700 transition-colors text-xl font-light flex items-center justify-center leading-none">+</button>
+        <button onclick="applyZoom(0.85)"
+          class="w-8 h-8 bg-dark-800 border border-dark-700 rounded text-gray-300 hover:text-white hover:bg-dark-700 transition-colors text-xl font-light flex items-center justify-center leading-none">−</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-900/90 border border-red-700 text-red-200 px-4 py-2 rounded-lg shadow-lg text-sm opacity-0 transition-opacity duration-300 pointer-events-none z-50"></div>
+
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/drawer.js"></script>
+  <script src="js/viewport.js"></script>
+  <script src="js/file.js"></script>
+</body>
+</html>

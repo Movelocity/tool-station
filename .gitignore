@@ -2,3 +2,6 @@ data/
 __pycache__/
 *.pyc
 config.yaml
+coze-workflow-view/canvas-example.json
+coze-workflow-view/export_workflow.py
+coze-workflow-view/XingyaoNameCheck_v0.0.10.coze-workflow.json
