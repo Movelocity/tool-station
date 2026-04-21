@@ -246,53 +246,6 @@
     }
     .toast { animation: fadeIn 0.2s ease-out; }
 
-    /* ── 数据导入导出浮动按钮 ── */
-    #dataFabWrap {
-      position: fixed;
-      right: 20px;
-      bottom: 20px;
-      z-index: 1000010;
-    }
-    #dataFabBtn {
-      width: 46px;
-      height: 46px;
-      border-radius: 999px;
-      border: 1px solid #334155;
-      background: #1e293b;
-      color: #e2e8f0;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-      cursor: pointer;
-      font-size: 20px;
-      line-height: 1;
-      transition: all 0.15s;
-    }
-    #dataFabBtn:hover { background: #334155; border-color: #475569; }
-    #dataFabMenu {
-      position: absolute;
-      right: 0;
-      bottom: 56px;
-      display: none;
-      min-width: 120px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 6px;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
-    }
-    #dataFabMenu.open { display: block; }
-    .data-fab-item {
-      width: 100%;
-      text-align: left;
-      border: none;
-      background: transparent;
-      color: #cbd5e1;
-      font-size: 13px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-    .data-fab-item:hover { background: #334155; color: #f1f5f9; }
   </style>
 </head>
 
@@ -330,21 +283,12 @@
     <p id="toastMsg" class="text-sm"></p>
   </div>
 
-  <!-- 数据浮动按钮 -->
-  <div id="dataFabWrap">
-    <button id="dataFabBtn" title="数据操作">⋯</button>
-    <div id="dataFabMenu">
-      <button id="exportDataBtn" class="data-fab-item">导出 JSON</button>
-      <button id="importDataBtn" class="data-fab-item">导入 JSON</button>
-    </div>
-    <input id="importFileInput" type="file" accept="application/json,.json" class="hidden">
-  </div>
-
   <!-- 外部模块 -->
   <script src="js/card-storage.js"></script>
   <script src="js/card-highlight.js"></script>
   <script src="js/card-resize.js"></script>
   <script src="js/card-drag.js"></script>
+  <script src="js/data-fab-menu.js"></script>
 
   <script>
     // ── 常量 & 状态 ──
@@ -755,14 +699,6 @@
       };
     }
 
-    function closeDataFabMenu() {
-      document.getElementById('dataFabMenu').classList.remove('open');
-    }
-
-    function openDataFabMenu() {
-      document.getElementById('dataFabMenu').classList.add('open');
-    }
-
     async function exportDataToJson() {
       const panes = Array.from(document.querySelectorAll('.json-pane')).map(buildPaneSnapshot);
       JsonVStorage.exportPanesToBackupFile(panes);
@@ -919,42 +855,34 @@
     // ── 全局监听 ──
     function setupGlobalListeners() {
       document.getElementById('addPaneBtn').addEventListener('click', () => createPane());
-
-      const fabBtn = document.getElementById('dataFabBtn');
-      const fabMenu = document.getElementById('dataFabMenu');
-      const exportBtn = document.getElementById('exportDataBtn');
-      const importBtn = document.getElementById('importDataBtn');
-      const importInput = document.getElementById('importFileInput');
-
-      fabBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (fabMenu.classList.contains('open')) {
-          closeDataFabMenu();
-        } else {
-          openDataFabMenu();
-        }
-      });
-
-      exportBtn.addEventListener('click', async () => {
-        closeDataFabMenu();
-        await exportDataToJson();
-      });
-
-      importBtn.addEventListener('click', () => {
-        closeDataFabMenu();
-        importInput.value = '';
-        importInput.click();
-      });
-
-      importInput.addEventListener('change', async (e) => {
-        const file = e.target.files && e.target.files[0];
-        await importDataFromFile(file);
-      });
-
-      document.addEventListener('click', (e) => {
-        if (!document.getElementById('dataFabWrap').contains(e.target)) {
-          closeDataFabMenu();
-        }
+      TextCardsDataFab.create({
+        items: [
+          {
+            id: 'to-notes',
+            label: '列表视图',
+            onClick: () => {
+              // window.open('./notes.html');
+              window.location.href = './notes.html';
+            },
+          },
+          {
+            id: 'export-json',
+            label: '导出 JSON',
+            onClick: async () => {
+              await exportDataToJson();
+            },
+          },
+          {
+            id: 'import-json',
+            label: '导入 JSON',
+            pickFile: {
+              accept: 'application/json,.json',
+              onPick: async (file) => {
+                await importDataFromFile(file);
+              },
+            },
+          },
+        ],
       });
     }
 

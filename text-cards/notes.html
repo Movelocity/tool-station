@@ -41,6 +41,13 @@
     .note-markdown .md-bullet { color: #c4b5fd; }
     .note-markdown .md-blockquote { color: #94a3b8; border-left: 3px solid #475569; padding-left: 10px; }
     .note-markdown .md-hr { color: #475569; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .toast { animation: fadeIn 0.2s ease-out; }
+
   </style>
 </head>
 <body class="m-0 min-h-screen bg-slate-900 text-slate-200 antialiased font-sans">
@@ -59,14 +66,21 @@
     </div>
   </main>
 
+  <div id="toast" class="toast fixed bottom-6 right-6 z-[99999] hidden rounded-lg px-4 py-3 shadow-lg"
+    style="background: #1e293b; border: 1px solid #334155;">
+    <p id="toastMsg" class="text-sm"></p>
+  </div>
+
   <script src="js/card-highlight.js"></script>
   <script src="js/card-storage.js"></script>
+  <script src="js/data-fab-menu.js"></script>
+  <script src="js/note-hover-menu.js"></script>
   <script>
     // Keep in sync with text-cards/index.html defaults.
     const DEFAULT_WIDTH = 560;
     const DEFAULT_HEIGHT = 280;
     const SHOW_STEP = 10;
-    const FILTER_ENABLED = false;
+    const FILTER_ENABLED = true;
     const FOLD_LINE_LIMIT = 10;
     const FOLD_CHAR_LIMIT = Math.round((DEFAULT_WIDTH / 7) * FOLD_LINE_LIMIT);
     const DRAFT_KEY = "text_cards_notes_draft_v2";
@@ -102,11 +116,11 @@
       visibleCount: SHOW_STEP,
       expandedIds: new Set(),
       editingId: "",
-      openMenuId: "",
       searchQuery: "",
       monthCursor: startOfMonth(Date.now()),
       draft: { content: "" },
     };
+    let noteHoverMenu = null;
 
     function escapeHtml(value) {
       return String(value == null ? "" : value)
@@ -319,25 +333,21 @@
       side.innerHTML = `
         <div class="space-y-5">
           <section>
-            <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Search content</label>
             <div class="relative">
               <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">${ICON.search}</span>
-              <input id="searchInput" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="Search note content..."
+              <input id="searchInput" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="搜索笔记内容..."
                 class="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-8 pr-3 text-sm text-slate-200 outline-none transition-colors focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 ${FILTER_ENABLED ? "" : "disabled"}>
             </div>
           </section>
           <section>
-            <div class="mb-3 flex items-center justify-between">
-              <h2 class="m-0 text-sm font-semibold text-slate-100">Calendar</h2>
+            <div class="mb-2 flex items-end justify-between">
+              <p class="m-0 text-sm text-slate-300">${monthLabel(state.monthCursor)}</p>
+              <p class="m-0 text-xs text-slate-400">笔记数量: <span class="text-emerald-300">${monthCount}</span></p>
               <div class="flex items-center gap-1">
                 <button id="monthPrevBtn" type="button" class="rounded-md border border-slate-600 bg-slate-900 p-1.5 text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100">${ICON.prev}</button>
                 <button id="monthNextBtn" type="button" class="rounded-md border border-slate-600 bg-slate-900 p-1.5 text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100">${ICON.next}</button>
               </div>
-            </div>
-            <div class="mb-2 flex items-end justify-between">
-              <p class="m-0 text-sm text-slate-300">${monthLabel(state.monthCursor)}</p>
-              <p class="m-0 text-xs text-slate-400">Created: <span class="text-emerald-300">${monthCount}</span></p>
             </div>
             <div class="grid grid-cols-7 gap-1">
               ${WEEKDAYS.map((w) => `<div class="text-center text-[10px] text-slate-500">${w}</div>`).join("")}
@@ -366,7 +376,6 @@
     function renderReadOnlyCard(note) {
       const folded = isFolded(note.id, note);
       const hasFoldBtn = shouldAutoFold(note);
-      const menuOpen = state.openMenuId === note.id;
       const bodyFold = folded
         ? " max-h-[calc(1.65em*10+8px)] overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]"
         : "";
@@ -381,11 +390,6 @@
             </div>
             <div class="relative shrink-0">
               <div class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-50 js-menu-toggle" data-id="${escapeHtml(note.id)}" title="More">${ICON.more}</div>
-              <div class="${menuOpen ? "flex" : "hidden"} absolute right-0 top-full z-30 mt-1 min-w-32 flex-col gap-0.5 rounded-[10px] border border-slate-600 bg-slate-900 p-1.5 shadow-xl" data-menu-id="${escapeHtml(note.id)}">
-                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-edit" data-id="${escapeHtml(note.id)}">Edit</button>
-                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-copy" data-id="${escapeHtml(note.id)}">Copy</button>
-                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 js-delete" data-id="${escapeHtml(note.id)}">Delete</button>
-              </div>
             </div>
           </header>
           <div class="note-markdown m-0 px-4 pb-2 text-sm leading-relaxed text-slate-100 whitespace-pre-wrap break-words${bodyFold}">${buildMarkdownHtml(note)}</div>
@@ -399,17 +403,18 @@
     }
 
     function renderEditCard(note) {
+      const estimatedHeight = Math.min(500, note.content.length / 100 * 16);
+      console.log(`content length: ${note.content.length}, estimatedHeight: ${estimatedHeight}`);
       return `
         <article class="${CARD}" data-id="${escapeHtml(note.id)}">
           <header class="relative flex items-start justify-between gap-3 px-4 pb-0 pt-3">
             <div class="flex min-w-0 items-center gap-2 text-xs text-slate-400">
-              <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.clock}</span>
-              <span class="whitespace-nowrap">${escapeHtml(formatDateLong(note.createdAt))}</span>
-              <input id="editTitleInput" class="min-w-0 flex-1 border-0 border-b border-slate-700 bg-transparent pb-1 text-[14px] text-slate-50 outline-none placeholder:font-medium placeholder:text-slate-500 focus:border-b-blue-600" type="text" placeholder="Title" value="${escapeHtml(note.title)}">
+              <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.save}</span>
+              <input id="editTitleInput" class="min-w-0 flex-1 border-0 rounded-sm bg-transparent border-b border-slate-700 p-1 text-[14px] text-slate-300 outline-none placeholder:font-medium placeholder:text-slate-500" type="text" placeholder="Title" value="${escapeHtml(note.title)}">
             </div>
           </header>
           <div class="flex flex-col gap-0 px-4 pt-2">
-            <textarea id="editContentInput" class="min-h-[120px] w-full resize-y border-0 bg-transparent p-0 font-inherit text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-500 focus:shadow-none" placeholder="Write something..." rows="8">${escapeHtml(note.content)}</textarea>
+            <textarea id="editContentInput" class="min-h-[${estimatedHeight}px] w-full resize-y border-0 bg-transparent p-0 font-inherit text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-500 focus:shadow-none" placeholder="Write something..." rows="8">${escapeHtml(note.content)}</textarea>
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2.5 px-4 py-2">
             <button type="button" id="cancelEditBtn" class="${BTN_BASE}">${ICON.x}<span>Cancel</span></button>
@@ -441,6 +446,7 @@
 
       renderSidePanel();
       bindEvents();
+      if (noteHoverMenu) noteHoverMenu.refresh();
     }
 
     function buildAutoTitleBySequence() {
@@ -456,8 +462,79 @@
       return `Card ${Math.max(maxSeq, fallbackSeq) + 1}`;
     }
 
-    function closeMenu() {
-      state.openMenuId = "";
+    function showToast(message, type = "info") {
+      const toast = document.getElementById("toast");
+      const msg = document.getElementById("toastMsg");
+      msg.textContent = message;
+      const colors = { success: "#22c55e", error: "#ef4444", info: "#e2e8f0" };
+      const borders = { success: "#22c55e", error: "#ef4444", info: "#334155" };
+      toast.style.borderColor = borders[type] || borders.info;
+      msg.style.color = colors[type] || colors.info;
+      toast.classList.remove("hidden");
+      setTimeout(() => toast.classList.add("hidden"), 3000);
+    }
+
+    function buildSnapshotFromNote(note) {
+      return {
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        createdAt: note.createdAt || Date.now(),
+        updatedAt: note.updatedAt || Date.now(),
+        hlMode: note.hlMode || "",
+        minimized: !!note.minimized,
+        wordWrap: note.wordWrap !== false,
+        height: note.height || DEFAULT_HEIGHT,
+        width: note.width || DEFAULT_WIDTH,
+        x: note.x || 40,
+        y: note.y || 40,
+        zIndex: note.zIndex || 1,
+      };
+    }
+
+    async function exportDataToJson() {
+      const panes = state.notes.map(buildSnapshotFromNote);
+      JsonVStorage.exportPanesToBackupFile(panes);
+      showToast(`已导出 ${panes.length} 个卡片`, "success");
+    }
+
+    async function replaceAllNotes(importedPanes) {
+      const existing = await JsonVStorage.loadAll();
+      for (const pane of existing) {
+        await JsonVStorage.removePane(pane.id);
+      }
+
+      const ordered = importedPanes
+        .map(normalizeNote)
+        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      for (const pane of ordered) {
+        await JsonVStorage.savePane(pane.id, buildSnapshotFromNote(pane));
+      }
+
+      if (!ordered.length) {
+        state.visibleCount = SHOW_STEP;
+      }
+      await loadNotes();
+      render();
+    }
+
+    async function importDataFromFile(file) {
+      const result = await JsonVStorage.parseBackupFile(file);
+      if (!result.ok) {
+        if (result.error === "no_file") return;
+        if (result.error === "invalid_json") {
+          showToast("导入失败：不是有效 JSON", "error");
+          return;
+        }
+        showToast("导入失败：无法识别的 text-cards 数据格式", "error");
+        return;
+      }
+
+      const { panes } = result;
+      const ok = window.confirm(`将用导入数据覆盖当前列表（${panes.length} 个卡片），是否继续？`);
+      if (!ok) return;
+      await replaceAllNotes(panes);
+      showToast(`导入成功：${panes.length} 个卡片`, "success");
     }
 
     function copyTextByTextarea(value) {
@@ -584,16 +661,23 @@
       render();
     }
 
-    function bindCardEvents() {
-      document.querySelectorAll(".js-menu-toggle").forEach((btn) => {
-        btn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          const id = btn.dataset.id || "";
-          state.openMenuId = state.openMenuId === id ? "" : id;
-          render();
-        });
-      });
+    async function handleMenuAction(action, noteId) {
+      if (!noteId) return;
+      if (action === "edit") {
+        state.editingId = noteId;
+        render();
+        return;
+      }
+      if (action === "copy") {
+        await handleCopy(noteId);
+        return;
+      }
+      if (action === "delete") {
+        await handleDelete(noteId);
+      }
+    }
 
+    function bindCardEvents() {
       document.querySelectorAll(".js-fold-toggle").forEach((btn) => {
         btn.addEventListener("click", () => {
           const id = btn.dataset.id || "";
@@ -607,30 +691,6 @@
               scrollToCard(id);
             });
           }
-        });
-      });
-
-      document.querySelectorAll(".js-edit").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          state.editingId = btn.dataset.id || "";
-          closeMenu();
-          render();
-        });
-      });
-
-      document.querySelectorAll(".js-copy").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          closeMenu();
-          render();
-          await handleCopy(btn.dataset.id || "");
-        });
-      });
-
-      document.querySelectorAll(".js-delete").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          closeMenu();
-          render();
-          await handleDelete(btn.dataset.id || "");
         });
       });
 
@@ -650,13 +710,33 @@
       }
     }
 
+    function applySearchQuery(rawQuery, selectionStart, selectionEnd) {
+      state.searchQuery = rawQuery;
+      state.visibleCount = SHOW_STEP;
+      render();
+      const nextInput = document.getElementById("searchInput");
+      if (!nextInput) return;
+      nextInput.focus();
+      const textLength = nextInput.value.length;
+      const start = Number.isInteger(selectionStart) ? Math.min(selectionStart, textLength) : textLength;
+      const end = Number.isInteger(selectionEnd) ? Math.min(selectionEnd, textLength) : start;
+      nextInput.setSelectionRange(start, end);
+    }
+
     function bindSidePanelEvents() {
       const searchInput = document.getElementById("searchInput");
       if (searchInput && FILTER_ENABLED) {
+        let isComposing = false;
+        searchInput.addEventListener("compositionstart", () => {
+          isComposing = true;
+        });
+        searchInput.addEventListener("compositionend", () => {
+          isComposing = false;
+          applySearchQuery(searchInput.value, searchInput.selectionStart, searchInput.selectionEnd);
+        });
         searchInput.addEventListener("input", () => {
-          state.searchQuery = searchInput.value;
-          state.visibleCount = SHOW_STEP;
-          render();
+          if (isComposing) return;
+          applySearchQuery(searchInput.value, searchInput.selectionStart, searchInput.selectionEnd);
         });
       }
 
@@ -689,17 +769,41 @@
       render();
     });
 
-    document.addEventListener("click", (event) => {
-      if (!state.openMenuId) return;
-      const inMenu = event.target.closest("[data-menu-id]");
-      const inToggle = event.target.closest(".js-menu-toggle");
-      if (!inMenu && !inToggle) {
-        closeMenu();
-        render();
-      }
-    });
-
     async function init() {
+      noteHoverMenu = TextCardsNoteHoverMenu.create({
+        toggleSelector: ".js-menu-toggle",
+        getId: (toggleEl) => toggleEl.dataset.id || "",
+        onAction: handleMenuAction,
+      });
+      TextCardsDataFab.create({
+        items: [
+          {
+            id: "to-board",
+            label: "画布视图",
+            onClick: () => {
+              // window.open("./index.html");
+              window.location.href = "./index.html";
+            },
+          },
+          {
+            id: "export-json",
+            label: "导出 JSON",
+            onClick: async () => {
+              await exportDataToJson();
+            },
+          },
+          {
+            id: "import-json",
+            label: "导入 JSON",
+            pickFile: {
+              accept: "application/json,.json",
+              onPick: async (file) => {
+                await importDataFromFile(file);
+              },
+            },
+          },
+        ],
+      });
       readDraft();
       await loadNotes();
       render();
