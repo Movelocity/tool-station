@@ -89,7 +89,8 @@ const JsonVStorage = (() => {
     const prev = pos >= 0 ? index[pos] : {};
     // 兼容老数据：若历史上没有 createdAt，则用旧 updatedAt 回填，最后兜底当前时间。
     const createdAt = prev.createdAt || entry.createdAt || prev.updatedAt || Date.now();
-    const merged = { ...prev, ...entry, createdAt, updatedAt: Date.now() };
+    const updatedAt = Number.isFinite(entry.updatedAt) ? entry.updatedAt : Date.now();
+    const merged = { ...prev, ...entry, createdAt, updatedAt };
     if (pos >= 0) {
       index[pos] = merged;
     } else {
