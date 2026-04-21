@@ -238,6 +238,23 @@
       cursor: pointer; transition: background 0.15s;
     }
     #addPaneBtn:hover { background: #1d4ed8; }
+    #noteFlowBtn {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    #noteFlowBtn:hover {
+      border-color: #475569;
+      color: #f1f5f9;
+      background: #334155;
+    }
 
     /* Toast */
     @keyframes fadeIn {
@@ -293,6 +310,46 @@
       transition: background 0.15s, color 0.15s;
     }
     .data-fab-item:hover { background: #334155; color: #f1f5f9; }
+
+    /* ── 笔记管理弹层（嵌入 notes.html，不改动画布） ── */
+    #notesModal {
+      width: min(96vw, 1280px);
+      height: min(92vh, 900px);
+      max-width: none;
+      max-height: none;
+      padding: 0;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #121212;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+    #notesModal::backdrop {
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(2px);
+    }
+    .notes-manage-dialog__bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      height: 44px;
+      padding: 0 12px;
+      border-bottom: 1px solid #1e293b;
+      background: rgba(15, 23, 42, 0.96);
+    }
+    .notes-manage-dialog__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .notes-manage-dialog__frame {
+      width: 100%;
+      height: calc(100% - 44px);
+      border: none;
+      display: block;
+      background: #121212;
+    }
   </style>
 </head>
 
@@ -301,6 +358,7 @@
   <div id="topBar">
     <a href="/" class="font-semibold text-slate-100 hover:text-green-400 transition-colors tracking-tight cursor-pointer">Text Cards</a>
     <div id="paneIndex"></div>
+    <button type="button" id="noteFlowBtn" title="笔记管理（瀑布流）">笔记管理</button>
     <button id="addPaneBtn">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd"
@@ -323,6 +381,14 @@
     <div class="hl-drop-item" data-value="shell">Shell</div>
     <div class="hl-drop-item" data-value="markdown">MD</div>
   </div>
+
+  <dialog id="notesModal" aria-labelledby="notesModalTitle">
+    <div class="notes-manage-dialog__bar">
+      <span id="notesModalTitle" class="notes-manage-dialog__title">笔记管理</span>
+      <button type="button" id="notesModalClose" class="pane-btn">关闭</button>
+    </div>
+    <iframe id="notesModalFrame" class="notes-manage-dialog__frame" title="笔记管理" src="./notes.html?embed=1"></iframe>
+  </dialog>
 
   <!-- Toast 提示 -->
   <div id="toast" class="toast fixed bottom-6 right-6 z-[99999] px-4 py-3 rounded-lg shadow-lg hidden"
@@ -786,6 +852,13 @@
         });
 
       if (!importedPanes.length) createPane();
+      else {
+        // createPane(data) 在「从存储恢复」时不重复 scheduleSave；导入场景必须写入 IndexedDB + jsonv_index
+        for (const paneEl of document.querySelectorAll('.json-pane')) {
+          const snap = buildPaneSnapshot(paneEl);
+          await JsonVStorage.savePane(snap.id, snap);
+        }
+      }
       refreshIndex();
     }
 
@@ -912,6 +985,27 @@
     // ── 全局监听 ──
     function setupGlobalListeners() {
       document.getElementById('addPaneBtn').addEventListener('click', () => createPane());
+
+      const notesModal = document.getElementById('notesModal');
+      const notesModalClose = document.getElementById('notesModalClose');
+      const noteFlowBtn = document.getElementById('noteFlowBtn');
+      if (noteFlowBtn && notesModal) {
+        noteFlowBtn.addEventListener('click', () => {
+          const frame = document.getElementById('notesModalFrame');
+          if (frame) {
+            frame.src = `./notes.html?embed=1&_=${Date.now()}`;
+          }
+          notesModal.showModal();
+        });
+      }
+      if (notesModalClose && notesModal) {
+        notesModalClose.addEventListener('click', () => notesModal.close());
+      }
+      if (notesModal) {
+        notesModal.addEventListener('click', (e) => {
+          if (e.target === notesModal) notesModal.close();
+        });
+      }
 
       const fabBtn = document.getElementById('dataFabBtn');
       const fabMenu = document.getElementById('dataFabMenu');
