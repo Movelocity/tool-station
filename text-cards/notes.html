@@ -32,7 +32,7 @@
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
       font-size: 0.9em;
       color: #fcd34d;
-      background: rgba(255, 255, 255, 0.07);
+      /* background: rgba(255, 255, 255, 0.07); */
       border-radius: 6px;
       padding: 0.15em 0.4em;
     }
@@ -62,10 +62,13 @@
   <script src="js/card-highlight.js"></script>
   <script src="js/card-storage.js"></script>
   <script>
+    // Keep in sync with text-cards/index.html defaults.
     const DEFAULT_WIDTH = 560;
     const DEFAULT_HEIGHT = 280;
     const SHOW_STEP = 10;
+    const FILTER_ENABLED = false;
     const FOLD_LINE_LIMIT = 10;
+    const FOLD_CHAR_LIMIT = Math.round((DEFAULT_WIDTH / 7) * FOLD_LINE_LIMIT);
     const DRAFT_KEY = "text_cards_notes_draft_v2";
     const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -125,6 +128,19 @@
       return `${y}/${m}/${day}`;
     }
 
+    function formatDateLong(ts) {
+      if (!Number.isFinite(ts)) return "-";
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return "-";
+      const y = d.getFullYear();
+      const mon = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      const s = String(d.getSeconds()).padStart(2, "0");
+      return `${y}/${mon}/${day} ${h}:${m}:${s}`;
+    }
+
     function monthLabel(ts) {
       const d = new Date(ts);
       if (Number.isNaN(d.getTime())) return "-";
@@ -163,7 +179,31 @@
       localStorage.removeItem(DRAFT_KEY);
     }
 
+    function toFiniteNumber(value, fallback) {
+      const n = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function parseIdTimestamp(id) {
+      const match = String(id || "").match(/^pane-(\d+)-/);
+      if (!match) return 0;
+      const ts = Number.parseInt(match[1], 10);
+      return Number.isFinite(ts) ? ts : 0;
+    }
+
+    function resolveCreatedAt(raw) {
+      const created = toFiniteNumber(raw.createdAt, NaN);
+      if (Number.isFinite(created)) return created;
+      const updated = toFiniteNumber(raw.updatedAt, NaN);
+      if (Number.isFinite(updated)) return updated;
+      const fromId = parseIdTimestamp(raw.id);
+      if (Number.isFinite(fromId) && fromId > 0) return fromId;
+      return 0;
+    }
+
     function normalizeNote(raw) {
+      const createdAt = resolveCreatedAt(raw);
+      const updatedAt = toFiniteNumber(raw.updatedAt, createdAt);
       return {
         id: raw.id,
         title: typeof raw.title === "string" ? raw.title : "",
@@ -171,20 +211,18 @@
         hlMode: typeof raw.hlMode === "string" ? raw.hlMode : "",
         minimized: !!raw.minimized,
         wordWrap: raw.wordWrap !== false,
-        createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
-        updatedAt: Number.isFinite(raw.updatedAt) ? raw.updatedAt : Date.now(),
-        height: Number.isFinite(raw.height) ? raw.height : DEFAULT_HEIGHT,
-        width: Number.isFinite(raw.width) ? raw.width : DEFAULT_WIDTH,
-        x: Number.isFinite(raw.x) ? raw.x : 40,
-        y: Number.isFinite(raw.y) ? raw.y : 40,
-        zIndex: Number.isFinite(raw.zIndex) ? raw.zIndex : 1,
+        createdAt,
+        updatedAt,
+        height: toFiniteNumber(raw.height, DEFAULT_HEIGHT),
+        width: toFiniteNumber(raw.width, DEFAULT_WIDTH),
+        x: toFiniteNumber(raw.x, 40),
+        y: toFiniteNumber(raw.y, 40),
+        zIndex: toFiniteNumber(raw.zIndex, 1),
       };
     }
 
     function noteMarkdownSource(note) {
-      const title = note.title.trim();
-      const head = title && title !== "Untitled" ? `## ${title}\n\n` : "";
-      return head + (note.content || "");
+      return note.content || "";
     }
 
     function buildMarkdownHtml(note) {
@@ -193,19 +231,32 @@
       return JsonVHighlight.highlightMarkdown(src);
     }
 
+    function noteTitleText(note) {
+      const title = (note.title || "").trim();
+      return title || "Untitled";
+    }
+
     function lineCount(content) {
       if (!content) return 1;
       return content.split("\n").length;
     }
 
-    function isFolded(id, note) {
+    function shouldAutoFold(note) {
       const src = noteMarkdownSource(note);
-      if (lineCount(src) <= FOLD_LINE_LIMIT) return false;
+      return lineCount(src) > FOLD_LINE_LIMIT || src.length > FOLD_CHAR_LIMIT;
+    }
+
+    function isFolded(id, note) {
+      if (!shouldAutoFold(note)) return false;
       return !state.expandedIds.has(id);
     }
 
     function sortByCreatedDesc(a, b) {
-      return (b.createdAt || 0) - (a.createdAt || 0);
+      const byCreated = (b.createdAt || 0) - (a.createdAt || 0);
+      if (byCreated !== 0) return byCreated;
+      const byIdTimestamp = parseIdTimestamp(b.id) - parseIdTimestamp(a.id);
+      if (byIdTimestamp !== 0) return byIdTimestamp;
+      return String(b.id || "").localeCompare(String(a.id || ""));
     }
 
     async function loadNotes() {
@@ -214,6 +265,7 @@
     }
 
     function getFilteredNotes() {
+      if (!FILTER_ENABLED) return state.notes;
       const q = state.searchQuery.trim().toLowerCase();
       if (!q) return state.notes;
       return state.notes.filter((note) => (note.content || "").toLowerCase().includes(q));
@@ -271,7 +323,8 @@
             <div class="relative">
               <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">${ICON.search}</span>
               <input id="searchInput" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="Search note content..."
-                class="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-8 pr-3 text-sm text-slate-200 outline-none transition-colors focus:border-blue-500">
+                class="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-8 pr-3 text-sm text-slate-200 outline-none transition-colors focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                ${FILTER_ENABLED ? "" : "disabled"}>
             </div>
           </section>
           <section>
@@ -312,7 +365,7 @@
 
     function renderReadOnlyCard(note) {
       const folded = isFolded(note.id, note);
-      const hasFoldBtn = lineCount(noteMarkdownSource(note)) > FOLD_LINE_LIMIT;
+      const hasFoldBtn = shouldAutoFold(note);
       const menuOpen = state.openMenuId === note.id;
       const bodyFold = folded
         ? " max-h-[calc(1.65em*10+8px)] overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]"
@@ -323,18 +376,19 @@
           <header class="relative flex items-start justify-between gap-3 px-4 pb-0 pt-3">
             <div class="flex min-w-0 items-center gap-2 text-xs text-slate-400">
               <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.clock}</span>
-              <span class="whitespace-nowrap">${escapeHtml(formatDateShort(note.createdAt))}</span>
+              <span class="whitespace-nowrap">${escapeHtml(formatDateLong(note.createdAt))}</span>
+              <span class="truncate text-sm">${escapeHtml(noteTitleText(note))}</span>
             </div>
             <div class="relative shrink-0">
-              <button type="button" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-50 js-menu-toggle" data-id="${escapeHtml(note.id)}" title="More">${ICON.more}</button>
+              <div class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-50 js-menu-toggle" data-id="${escapeHtml(note.id)}" title="More">${ICON.more}</div>
               <div class="${menuOpen ? "flex" : "hidden"} absolute right-0 top-full z-30 mt-1 min-w-32 flex-col gap-0.5 rounded-[10px] border border-slate-600 bg-slate-900 p-1.5 shadow-xl" data-menu-id="${escapeHtml(note.id)}">
                 <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-edit" data-id="${escapeHtml(note.id)}">Edit</button>
-                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-copy" data-id="${escapeHtml(note.id)}">Duplicate</button>
+                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-copy" data-id="${escapeHtml(note.id)}">Copy</button>
                 <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 js-delete" data-id="${escapeHtml(note.id)}">Delete</button>
               </div>
             </div>
           </header>
-          <div class="note-markdown m-0 px-4 pb-4 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap break-words${bodyFold}">${buildMarkdownHtml(note)}</div>
+          <div class="note-markdown m-0 px-4 pb-2 text-sm leading-relaxed text-slate-100 whitespace-pre-wrap break-words${bodyFold}">${buildMarkdownHtml(note)}</div>
           ${hasFoldBtn ? `
             <footer class="flex min-h-0 items-center justify-end px-4 pb-1.5">
               <button type="button" class="${BTN_FOLD} js-fold-toggle" data-id="${escapeHtml(note.id)}">${folded ? ICON.chevronDown : ICON.chevronUp}<span>${folded ? "展开" : "收起"}</span></button>
@@ -350,14 +404,14 @@
           <header class="relative flex items-start justify-between gap-3 px-4 pb-0 pt-3">
             <div class="flex min-w-0 items-center gap-2 text-xs text-slate-400">
               <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.clock}</span>
-              <span class="whitespace-nowrap">${escapeHtml(formatDateShort(note.createdAt))}</span>
+              <span class="whitespace-nowrap">${escapeHtml(formatDateLong(note.createdAt))}</span>
+              <input id="editTitleInput" class="min-w-0 flex-1 border-0 border-b border-slate-700 bg-transparent pb-1 text-[14px] text-slate-50 outline-none placeholder:font-medium placeholder:text-slate-500 focus:border-b-blue-600" type="text" placeholder="Title" value="${escapeHtml(note.title)}">
             </div>
           </header>
           <div class="flex flex-col gap-0 px-4 pt-2">
-            <input id="editTitleInput" class="mb-2 w-full border-0 border-b border-slate-700 bg-transparent pb-2 text-[15px] font-semibold text-slate-50 outline-none placeholder:font-medium placeholder:text-slate-500 focus:border-b-blue-600" type="text" placeholder="Title" value="${escapeHtml(note.title)}">
             <textarea id="editContentInput" class="min-h-[120px] w-full resize-y border-0 bg-transparent p-0 font-inherit text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-500 focus:shadow-none" placeholder="Write something..." rows="8">${escapeHtml(note.content)}</textarea>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-2.5 px-4 py-3 pb-3.5">
+          <div class="flex flex-wrap items-center justify-end gap-2.5 px-4 py-2">
             <button type="button" id="cancelEditBtn" class="${BTN_BASE}">${ICON.x}<span>Cancel</span></button>
             <button type="button" id="saveEditBtn" class="${BTN_PRIMARY}" data-id="${escapeHtml(note.id)}">${ICON.save}<span>Save</span></button>
           </div>
@@ -389,18 +443,51 @@
       bindEvents();
     }
 
-    function splitDraftTitleBody(raw) {
-      const text = String(raw || "").trim();
-      if (!text) return { title: "Untitled", content: "" };
-      const lines = text.split("\n");
-      if (lines.length === 1) return { title: "Untitled", content: lines[0] };
-      const title = lines[0].slice(0, 200) || "Untitled";
-      const content = lines.slice(1).join("\n");
-      return { title, content };
+    function buildAutoTitleBySequence() {
+      let maxSeq = 0;
+      for (const note of state.notes) {
+        const match = String(note.title || "").trim().match(/^Card\s+(\d+)$/i);
+        if (!match) continue;
+        const seq = Number.parseInt(match[1], 10);
+        if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
+      }
+      // Keep sequence monotonic even when some cards are deleted.
+      const fallbackSeq = state.notes.length;
+      return `Card ${Math.max(maxSeq, fallbackSeq) + 1}`;
     }
 
     function closeMenu() {
       state.openMenuId = "";
+    }
+
+    function copyTextByTextarea(value) {
+      const text = String(value == null ? "" : value);
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      textarea.style.left = "-9999px";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } catch {
+        copied = false;
+      }
+      document.body.removeChild(textarea);
+      return copied;
+    }
+
+    function scrollToCard(noteId) {
+      const card = document.querySelector(`article[data-id="${noteId}"]`);
+      if (!card) return;
+      const top = Math.max(0, window.scrollY + card.getBoundingClientRect().top - 12);
+      window.scrollTo({ top, behavior: "auto" });
     }
 
     function bindDraftEvents() {
@@ -424,8 +511,11 @@
       });
 
       saveBtn.addEventListener("click", async () => {
-        if (!state.draft.content.trim()) return;
-        const { title, content } = splitDraftTitleBody(state.draft.content);
+        if (!state.draft.content.trim()) {
+          return;
+        };
+        const title = buildAutoTitleBySequence();
+        const content = state.draft.content;
         const now = Date.now();
         const id = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -463,16 +553,8 @@
       await JsonVStorage.savePane(note.id, {
         title: titleInput.value.trim() || "Untitled",
         content: contentInput.value,
-        hlMode: note.hlMode,
-        minimized: note.minimized,
-        wordWrap: note.wordWrap,
         createdAt: note.createdAt,
         updatedAt: now,
-        height: note.height,
-        width: note.width,
-        x: note.x,
-        y: note.y,
-        zIndex: note.zIndex,
       });
 
       state.editingId = "";
@@ -483,28 +565,10 @@
     async function handleCopy(noteId) {
       const note = state.notes.find((item) => item.id === noteId);
       if (!note) return;
-      const now = Date.now();
-      const newId = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
-      const copiedTitle = note.title.trim() ? `${note.title} (Copy)` : "Untitled (Copy)";
-
-      await JsonVStorage.savePane(newId, {
-        title: copiedTitle,
-        content: note.content,
-        hlMode: note.hlMode,
-        minimized: note.minimized,
-        wordWrap: note.wordWrap,
-        createdAt: now,
-        updatedAt: now,
-        height: note.height,
-        width: note.width,
-        x: note.x,
-        y: note.y,
-        zIndex: note.zIndex,
-      });
-
-      state.visibleCount += 1;
-      await loadNotes();
-      render();
+      const title = noteTitleText(note);
+      const content = note.content || "";
+      const toCopy = content.trim() ? `${title}\n\n${content}` : title;
+      copyTextByTextarea(toCopy);
     }
 
     async function handleDelete(noteId) {
@@ -534,9 +598,15 @@
         btn.addEventListener("click", () => {
           const id = btn.dataset.id || "";
           if (!id) return;
-          if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+          const wasExpanded = state.expandedIds.has(id);
+          if (wasExpanded) state.expandedIds.delete(id);
           else state.expandedIds.add(id);
           render();
+          if (wasExpanded) {
+            requestAnimationFrame(() => {
+              scrollToCard(id);
+            });
+          }
         });
       });
 
@@ -582,7 +652,7 @@
 
     function bindSidePanelEvents() {
       const searchInput = document.getElementById("searchInput");
-      if (searchInput) {
+      if (searchInput && FILTER_ENABLED) {
         searchInput.addEventListener("input", () => {
           state.searchQuery = searchInput.value;
           state.visibleCount = SHOW_STEP;
