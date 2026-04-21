@@ -118,7 +118,7 @@
 
   <!-- ── Script editor modal ───────────────────────────────────────────── -->
   <div id="modal" style="display:none"
-    class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-slate-800 border border-slate-700/80 rounded-2xl w-full max-w-2xl flex flex-col shadow-2xl"
       style="max-height:90vh">
 
@@ -141,35 +141,34 @@
             class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-green-400/50 transition-colors">
         </div>
 
-        <!-- Default trigger -->
-        <div>
-          <label class="block text-xs text-slate-400 mb-2">Default trigger</label>
-          <div class="flex gap-5 text-sm">
-            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
-              <input type="radio" name="f-trigger" value="input" class="accent-green-400"> Live
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
-              <input type="radio" name="f-trigger" value="blur" class="accent-green-400"> On blur
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
-              <input type="radio" name="f-trigger" value="click" class="accent-green-400" checked> Manual
-            </label>
-          </div>
-        </div>
-
         <!-- Code editor -->
         <div>
           <label class="block text-xs text-slate-400 mb-1.5">
             Code
             <span class="text-slate-500 ml-1">
-              — receives <code class="bg-slate-700/60 px-1 py-0.5 rounded text-green-400/80 text-[11px]">input</code>
-              string, return the result (async/await supported)
+              — 输入变量 <code class="bg-slate-700/60 px-1 py-0.5 rounded text-green-400/80 text-[11px]">input</code> 为字符串，返回结果（支持异步/等待）
             </span>
           </label>
           <textarea id="f-code" rows="11"
             class="mono w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-green-400/50 transition-colors leading-relaxed"
             placeholder="// Example: reverse&#10;return input.split('').reverse().join('')"
             spellcheck="false"></textarea>
+        </div>
+
+        <!-- Default trigger -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-2">执行时机</label>
+          <div class="flex gap-5 text-sm">
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="input" class="accent-green-400"> 实时触发
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="blur" class="accent-green-400"> 编辑完出发
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+              <input type="radio" name="f-trigger" value="click" class="accent-green-400" checked> 手动触发
+            </label>
+          </div>
         </div>
 
         <!-- Publish section -->
@@ -277,8 +276,14 @@
   async function serverPublish(script) {
     await kv.set(KV_KEY(script.id), script);
     const index = (await kv.get(KV_INDEX)) || [];
-    const summary = { id: script.id, name: script.name, trigger: script.trigger,
-                      authorId: script.authorId, updatedAt: script.updatedAt };
+    const summary = { 
+      id: script.id, 
+      name: script.name, 
+      trigger: script.trigger,
+      code: script.code,
+      authorId: script.authorId, 
+      updatedAt: script.updatedAt 
+    };
     const i = index.findIndex(s => s.id === script.id);
     if (i >= 0) index[i] = summary; else index.push(summary);
     await kv.set(KV_INDEX, index);

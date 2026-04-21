@@ -5,19 +5,19 @@
   "pages": [
     {
       "path": "coze-workflow-view/",
-      "title": "Coze Workflow Viewer",
-      "description": "Upload .coze-workflow.json to visualize nodes, edges, and workflow canvas.",
+      "title": "Coze 工作流查看",
+      "description": "上传 .coze-workflow.json 文件，查看工作流节点、边和画布。",
       "category": "开发"
     },
     {
       "path": "text-process/",
-      "title": "文本处理工具",
+      "title": "文本处理",
       "description": "Scriptable文本处理工具，支持多种文本处理方式。",
       "category": "开发"
     },
     {
       "path": "jwt/",
-      "title": "JWT Decoder",
+      "title": "JWT 解码",
       "description": "解码与校验 JWT，查看 Header / Payload / Signature。",
       "category": "开发"
     },
@@ -36,7 +36,7 @@
     {
       "path": "qr-reader/",
       "title": "二维码扫描",
-      "description": "Upload an image to decode the text behind a QR code.",
+      "description": "上传图片，扫描二维码，查看二维码内容。",
       "category": "工具"
     },
     {
