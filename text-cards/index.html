@@ -202,8 +202,33 @@
     .idx-chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
     .idx-chip.minimized { border-style: dashed; color: #64748b; }
     .idx-chip.minimized:hover { color: #e2e8f0; }
+    .idx-chip.maximized { border-color: #f59e0b; box-shadow: inset 0 0 0 1px #f59e0b; color: #fcd34d; }
+    .idx-chip.maximized.active { background: #d97706; border-color: #d97706; color: #fff; box-shadow: none; }
 
     .json-pane.pane-minimized { display: none; }
+    .json-pane.pane-maximized {
+      position: fixed !important;
+      top: 56px !important;
+      left: 12px !important;
+      width: calc(100vw - 24px) !important;
+      height: calc(100vh - 68px) !important;
+      max-height: calc(100vh - 68px);
+      z-index: 1000000 !important;
+    }
+    .json-pane.pane-maximized .pane-content {
+      min-height: 0;
+      height: auto !important;
+      flex: 1;
+    }
+    .json-pane.pane-maximized .minimize-pane-btn { display: none; }
+    .json-pane.pane-maximized .resize-handle { display: none; }
+    .pane-max-shadow {
+      position: absolute;
+      border: 1px dashed #475569;
+      border-radius: 8px;
+      background: rgba(51, 65, 85, 0.2);
+      pointer-events: none;
+    }
 
     #addPaneBtn {
       flex-shrink: 0;
@@ -269,6 +294,7 @@
     const DEFAULT_HEIGHT = 280;
     const PANE_GAP = 40;
     let paneIdSeq = 0;
+    let maximizedPaneId = null;
     // 每个窗格的选区信息  paneId → { textarea, start, end, text }
     const paneSelections = {};
 
@@ -354,6 +380,7 @@
       const hlMode      = data?.hlMode || (data?.highlightOn ? 'json' : '');
       const minimized   = data?.minimized   || false;
       const wordWrap    = data?.wordWrap !== false;   // 默认开启换行
+      const createdAt   = data?.createdAt || data?.updatedAt || Date.now();
       const height = data?.height || DEFAULT_HEIGHT;
       const width  = data?.width  || DEFAULT_WIDTH;
       const pos    = (data?.x != null && data?.y != null) ? { x: data.x, y: data.y } : nextPosition();
@@ -362,6 +389,7 @@
       const pane = document.createElement('div');
       pane.dataset.paneId = id;
       pane.className = 'json-pane bg-slate-800 border border-slate-700';
+      pane.dataset.createdAt = String(createdAt);
       pane.style.left = pos.x + 'px';
       pane.style.top  = pos.y + 'px';
       pane.style.width = width + 'px';
@@ -371,9 +399,11 @@
         <div class="pane-titlebar flex items-center justify-between px-3 py-2 bg-slate-800/80 border-b border-slate-700 gap-2">
           <input type="text" class="pane-title-input bg-transparent text-slate-200 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 min-w-0 flex-1" value="${esc(title)}" placeholder="标题..." readonly>
           <div class="flex items-center gap-1 flex-shrink-0">
+            <span class="pane-created-at text-[11px] text-slate-500 px-1 hidden sm:inline" title="创建时间">${formatTimestamp(createdAt)}</span>
             <button class="pane-btn format-btn hidden" title="格式化选中 JSON">格式化</button>
             <button class="hl-select${hlMode ? ' active' : ''}" title="选择高亮模式" data-hl-mode="${hlMode}">${hlMode === 'json' ? 'JSON' : hlMode === 'shell' ? 'Shell' : hlMode === 'markdown' ? 'MD' : 'Raw'}</button>
             <button class="pane-btn wrap-toggle active" title="切换自动换行">↵</button>
+            <button class="maximize-pane-btn pane-btn" title="最大化">□</button>
             <button class="minimize-pane-btn pane-btn" title="最小化">−</button>
             <button class="delete-pane-btn pane-btn danger" title="删除窗格">✕</button>
           </div>
@@ -395,6 +425,7 @@
       const wrapToggle   = pane.querySelector('.wrap-toggle');
       const formatBtn    = pane.querySelector('.format-btn');
       const minimizeBtn  = pane.querySelector('.minimize-pane-btn');
+      const maximizeBtn  = pane.querySelector('.maximize-pane-btn');
       const deleteBtn    = pane.querySelector('.delete-pane-btn');
       const paneContent  = pane.querySelector('.pane-content');
       const resizeHandle = pane.querySelector('.resize-handle');
@@ -530,13 +561,27 @@
       // ── 最小化 ──
       minimizeBtn.addEventListener('click', () => {
         pane.classList.add('pane-minimized');
+        if (maximizedPaneId === id) exitMaxMode();
         scheduleSave(pane);
         refreshIndex();
+      });
+
+      // ── 最大化 ──
+      maximizeBtn.addEventListener('click', () => {
+        toggleMaxMode(id);
       });
 
       // ── 删除 ──
       deleteBtn.addEventListener('click', async () => {
         if (document.querySelectorAll('.json-pane').length > 1) {
+          const contentText = pane.querySelector('.editor-textarea').value || '';
+          if (contentText.trim()) {
+            const title = pane.querySelector('.pane-title-input').value || '';
+            const briefContent = contentText.substring(0, 36) + '...';
+            const confirmed = window.confirm(`卡片【${title}】不为空，确认删除吗？\n\n${briefContent}`);
+            if (!confirmed) return;
+          }
+          if (maximizedPaneId === id) exitMaxMode();
           pane.remove();
           delete paneSelections[id];
           await JsonVStorage.removePane(id);
@@ -556,6 +601,81 @@
     // ── 辅助 ──
     function esc(s) { return JsonVHighlight.escapeHtml(s).replace(/"/g, '&quot;'); }
 
+    function formatTimestamp(ts) {
+      if (!ts) return '';
+      const date = new Date(ts);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleString();
+    }
+
+    function removeMaxShadow() {
+      document.querySelectorAll('.pane-max-shadow').forEach(el => el.remove());
+    }
+
+    function createMaxShadow(pane) {
+      removeMaxShadow();
+      const shadow = document.createElement('div');
+      shadow.className = 'pane-max-shadow';
+      shadow.style.left = pane.style.left;
+      shadow.style.top = pane.style.top;
+      shadow.style.width = pane.offsetWidth + 'px';
+      shadow.style.height = pane.offsetHeight + 'px';
+      const paneZ = parseInt(pane.style.zIndex, 10) || 0;
+      shadow.style.zIndex = String(Math.max(0, paneZ - 1));
+      document.getElementById('canvas').appendChild(shadow);
+    }
+
+    function setPaneMaxButtonState(pane, active) {
+      const btn = pane?.querySelector('.maximize-pane-btn');
+      if (!btn) return;
+      btn.classList.toggle('active', active);
+      btn.title = active ? '退出最大化' : '最大化';
+      btn.textContent = active ? '🗗' : '□';
+    }
+
+    function enterMaxMode(id) {
+      const pane = document.querySelector(`.json-pane[data-pane-id="${id}"]`);
+      if (!pane) return;
+      if (pane.classList.contains('pane-minimized')) {
+        pane.classList.remove('pane-minimized');
+        scheduleSave(pane);
+      }
+      if (maximizedPaneId && maximizedPaneId !== id) {
+        const prevPane = document.querySelector(`.json-pane[data-pane-id="${maximizedPaneId}"]`);
+        if (prevPane) {
+          prevPane.classList.remove('pane-maximized');
+          setPaneMaxButtonState(prevPane, false);
+        }
+      }
+      createMaxShadow(pane);
+      pane.classList.add('pane-maximized');
+      setPaneMaxButtonState(pane, true);
+      maximizedPaneId = id;
+      JsonVDrag.bringToFront(pane);
+      setActiveChip(id);
+      refreshIndex();
+    }
+
+    function exitMaxMode() {
+      if (!maximizedPaneId) return;
+      const pane = document.querySelector(`.json-pane[data-pane-id="${maximizedPaneId}"]`);
+      if (pane) {
+        pane.classList.remove('pane-maximized');
+        setPaneMaxButtonState(pane, false);
+      }
+      maximizedPaneId = null;
+      removeMaxShadow();
+      refreshIndex();
+    }
+
+    function toggleMaxMode(id) {
+      if (maximizedPaneId === id) {
+        exitMaxMode();
+      } else {
+        enterMaxMode(id);
+      }
+    }
+
     function refreshHighlight(pane) {
       const textarea = pane.querySelector('.editor-textarea');
       const view = pane.querySelector('.highlight-view');
@@ -571,14 +691,23 @@
 
     function scheduleSave(pane) {
       const id = pane.dataset.paneId;
+      const paneContent = pane.querySelector('.pane-content');
+      const isMaximized = pane.classList.contains('pane-maximized');
+      const savedHeight = isMaximized
+        ? (parseInt(paneContent.style.height, 10) || DEFAULT_HEIGHT)
+        : paneContent.offsetHeight;
+      const savedWidth = isMaximized
+        ? (parseInt(pane.style.width, 10) || DEFAULT_WIDTH)
+        : pane.offsetWidth;
       JsonVStorage.savePane(id, {
         title:       pane.querySelector('.pane-title-input').value,
         content:     pane.querySelector('.editor-textarea').value,
+        createdAt:   parseInt(pane.dataset.createdAt, 10) || Date.now(),
         hlMode:      pane.dataset.hlMode || '',
         minimized:   pane.classList.contains('pane-minimized'),
-        wordWrap:    !pane.querySelector('.pane-content').classList.contains('pane-nowrap'),
-        height:      pane.querySelector('.pane-content').offsetHeight,
-        width:       pane.offsetWidth,
+        wordWrap:    !paneContent.classList.contains('pane-nowrap'),
+        height:      savedHeight,
+        width:       savedWidth,
         x:           parseInt(pane.style.left, 10) || 0,
         y:           parseInt(pane.style.top, 10)  || 0,
         zIndex:      parseInt(pane.style.zIndex, 10) || 0,
@@ -594,8 +723,9 @@
         const id = p.dataset.paneId;
         const title = p.querySelector('.pane-title-input').value || 'Pane';
         const isMin = p.classList.contains('pane-minimized');
+        const isMax = id === maximizedPaneId;
         const chip = document.createElement('span');
-        chip.className = 'idx-chip' + (isMin ? ' minimized' : '');
+        chip.className = 'idx-chip' + (isMin ? ' minimized' : '') + (isMax ? ' maximized' : '');
         chip.dataset.paneId = id;
         chip.textContent = title;
         chip.title = isMin ? `${title} (最小化)` : title;
@@ -613,6 +743,14 @@
     function focusPane(id) {
       const pane = document.querySelector(`.json-pane[data-pane-id="${id}"]`);
       if (!pane) return;
+      if (maximizedPaneId) {
+        if (maximizedPaneId !== id) {
+          enterMaxMode(id);
+        } else {
+          setActiveChip(id);
+        }
+        return;
+      }
       if (pane.classList.contains('pane-minimized')) {
         pane.classList.remove('pane-minimized');
         scheduleSave(pane);

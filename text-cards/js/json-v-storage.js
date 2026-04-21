@@ -3,7 +3,7 @@
  * 窗格内容持久化：IndexedDB 存大文本，localStorage 存轻量索引。
  *
  * 索引结构（localStorage key: "jsonv_index"）：
- *   [{ id, title, hlMode, height, width, x, y, zIndex, updatedAt }, ...]
+ *   [{ id, title, hlMode, height, width, x, y, zIndex, createdAt, updatedAt }, ...]
  *
  * IndexedDB（db: "JsonViewerDB", store: "panes"）：
  *   key = pane id，value = { id, content }
@@ -86,7 +86,10 @@ const JsonVStorage = (() => {
   function upsertIndexEntry(entry) {
     const index = loadIndex();
     const pos = index.findIndex(e => e.id === entry.id);
-    const merged = { ...(pos >= 0 ? index[pos] : {}), ...entry, updatedAt: Date.now() };
+    const prev = pos >= 0 ? index[pos] : {};
+    // 兼容老数据：若历史上没有 createdAt，则用旧 updatedAt 回填，最后兜底当前时间。
+    const createdAt = prev.createdAt || entry.createdAt || prev.updatedAt || Date.now();
+    const merged = { ...prev, ...entry, createdAt, updatedAt: Date.now() };
     if (pos >= 0) {
       index[pos] = merged;
     } else {
