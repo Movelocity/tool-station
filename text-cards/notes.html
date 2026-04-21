@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Cards - Notes</title>
+  <script src="/lib/tailwind.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #0f172a;
+    }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .notes-shell {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 20px 16px 28px;
+    }
+
+    .notes-title {
+      margin: 0;
+      color: #f1f5f9;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .notes-subtitle {
+      margin: 6px 0 0;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    .note-list {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .note-card {
+      width: 560px;
+      max-width: 100%;
+      margin: 0 auto;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #1e293b;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+      overflow: hidden;
+    }
+
+    .note-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #334155;
+      background: rgba(30, 41, 59, .8);
+      position: relative;
+    }
+
+    .note-title {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 600;
+      color: #f1f5f9;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .note-time {
+      margin-top: 2px;
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+
+    .note-body {
+      margin: 0;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      line-height: 1.6;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .note-body.folded {
+      max-height: calc(1.6em * 10 + 2px);
+      overflow: hidden;
+    }
+
+    .note-foot {
+      border-top: 1px solid #334155;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+    }
+
+    .note-btn {
+      border: 1px solid #475569;
+      background: #1e293b;
+      color: #cbd5e1;
+      border-radius: 8px;
+      font-size: 12px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .note-btn:hover:not(:disabled) {
+      border-color: #64748b;
+      color: #f8fafc;
+      background: #334155;
+    }
+    .note-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .note-btn.primary {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #fff;
+    }
+    .note-btn.primary:hover:not(:disabled) {
+      border-color: #1d4ed8;
+      background: #1d4ed8;
+    }
+    .note-btn.danger {
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+    .note-btn.danger:hover:not(:disabled) {
+      border-color: #991b1b;
+      background: #991b1b;
+      color: #fff;
+    }
+
+    .note-menu-btn {
+      border: 1px solid #475569;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .note-menu-btn:hover {
+      border-color: #64748b;
+      color: #f1f5f9;
+      background: #334155;
+    }
+
+    .note-menu {
+      position: absolute;
+      top: 42px;
+      right: 12px;
+      min-width: 110px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background: #0f172a;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, .35);
+      z-index: 30;
+    }
+
+    .note-menu.open { display: flex; }
+
+    .note-menu-item {
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      color: #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .note-menu-item:hover {
+      background: #334155;
+      color: #f8fafc;
+    }
+    .note-menu-item.danger {
+      color: #fca5a5;
+    }
+    .note-menu-item.danger:hover {
+      background: #991b1b;
+      color: #fff;
+    }
+
+    .note-input,
+    .note-textarea {
+      width: 100%;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 14px;
+      padding: 8px 10px;
+      outline: none;
+    }
+    .note-input:focus,
+    .note-textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb;
+    }
+
+    .note-textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.55;
+      font-family: inherit;
+    }
+
+    .note-edit-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .note-edit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .new-card-label {
+      margin: 0;
+      font-size: 11px;
+      color: #38bdf8;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .new-meta {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    .show-more-wrap {
+      margin-top: 18px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .empty {
+      width: 560px;
+      max-width: 100%;
+      margin: 0 auto;
+      border: 1px dashed #334155;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, .45);
+      color: #94a3b8;
+      text-align: center;
+      padding: 26px 14px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main class="notes-shell">
+    <h1 class="notes-title">Notes Management</h1>
+    <p class="notes-subtitle">Single-column flow, sorted by created time.</p>
+    <section id="noteList" class="note-list"></section>
+    <div class="show-more-wrap">
+      <button id="showMoreBtn" class="note-btn">Show More</button>
+    </div>
+  </main>
+
+  <script src="js/card-storage.js"></script>
+  <script>
+    const DEFAULT_WIDTH = 560;
+    const DEFAULT_HEIGHT = 280;
+    const SHOW_STEP = 10;
+    const FOLD_LINE_LIMIT = 10;
+    const DRAFT_KEY = "text_cards_notes_draft";
+
+    const state = {
+      notes: [],
+      visibleCount: SHOW_STEP,
+      expandedIds: new Set(),
+      editingId: "",
+      openMenuId: "",
+      draft: {
+        title: "",
+        content: "",
+      },
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function formatTime(ts) {
+      if (!Number.isFinite(ts)) return "-";
+      const date = new Date(ts);
+      if (Number.isNaN(date.getTime())) return "-";
+      return date.toLocaleString();
+    }
+
+    function readDraft() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
+        state.draft.title = typeof parsed.title === "string" ? parsed.title : "";
+        state.draft.content = typeof parsed.content === "string" ? parsed.content : "";
+      } catch {
+        state.draft.title = "";
+        state.draft.content = "";
+      }
+    }
+
+    function writeDraft() {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        title: state.draft.title,
+        content: state.draft.content,
+      }));
+    }
+
+    function clearDraft() {
+      state.draft.title = "";
+      state.draft.content = "";
+      localStorage.removeItem(DRAFT_KEY);
+    }
+
+    function normalizeNote(raw) {
+      return {
+        id: raw.id,
+        title: typeof raw.title === "string" ? raw.title : "",
+        content: typeof raw.content === "string" ? raw.content : "",
+        hlMode: typeof raw.hlMode === "string" ? raw.hlMode : "",
+        minimized: !!raw.minimized,
+        wordWrap: raw.wordWrap !== false,
+        createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+        updatedAt: Number.isFinite(raw.updatedAt) ? raw.updatedAt : Date.now(),
+        height: Number.isFinite(raw.height) ? raw.height : DEFAULT_HEIGHT,
+        width: Number.isFinite(raw.width) ? raw.width : DEFAULT_WIDTH,
+        x: Number.isFinite(raw.x) ? raw.x : 40,
+        y: Number.isFinite(raw.y) ? raw.y : 40,
+        zIndex: Number.isFinite(raw.zIndex) ? raw.zIndex : 1,
+      };
+    }
+
+    function lineCount(content) {
+      if (!content) return 1;
+      return content.split("\n").length;
+    }
+
+    function isFolded(id, content) {
+      if (lineCount(content) <= FOLD_LINE_LIMIT) return false;
+      return !state.expandedIds.has(id);
+    }
+
+    function sortByCreatedDesc(a, b) {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+
+    async function loadNotes() {
+      const all = await JsonVStorage.loadAll();
+      state.notes = all.map(normalizeNote).sort(sortByCreatedDesc);
+    }
+
+    function renderNewCard() {
+      const draftTime = state.draft.content.trim() || state.draft.title.trim() ? "Draft cached locally" : "Start a new note";
+      return `
+        <article class="note-card" data-role="new-note">
+          <header class="note-head">
+            <div>
+              <p class="new-card-label">Create New</p>
+              <h2 class="note-title">New Card</h2>
+              <div class="new-meta">${escapeHtml(draftTime)}</div>
+            </div>
+          </header>
+          <div class="note-edit-body">
+            <input id="newTitleInput" class="note-input" type="text" placeholder="Title (optional)" value="${escapeHtml(state.draft.title)}">
+            <textarea id="newContentInput" class="note-textarea" placeholder="Write your note...">${escapeHtml(state.draft.content)}</textarea>
+            <div class="note-edit-actions">
+              <button id="clearDraftBtn" class="note-btn">Clear Draft</button>
+              <button id="saveNewBtn" class="note-btn primary">Save Note</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderReadOnlyCard(note) {
+      const folded = isFolded(note.id, note.content);
+      const hasFoldBtn = lineCount(note.content) > FOLD_LINE_LIMIT;
+      const menuOpen = state.openMenuId === note.id;
+      const title = note.title.trim() || "Untitled";
+
+      return `
+        <article class="note-card" data-id="${escapeHtml(note.id)}">
+          <header class="note-head">
+            <div>
+              <h2 class="note-title" title="${escapeHtml(title)}">${escapeHtml(title)}</h2>
+              <div class="note-time">Created: ${escapeHtml(formatTime(note.createdAt))}</div>
+            </div>
+            <div>
+              <button class="note-menu-btn js-menu-toggle" data-id="${escapeHtml(note.id)}" title="Card actions">...</button>
+              <div class="note-menu${menuOpen ? " open" : ""}" data-menu-id="${escapeHtml(note.id)}">
+                <button class="note-menu-item js-edit" data-id="${escapeHtml(note.id)}">Edit</button>
+                <button class="note-menu-item js-copy" data-id="${escapeHtml(note.id)}">Copy</button>
+                <button class="note-menu-item danger js-delete" data-id="${escapeHtml(note.id)}">Delete</button>
+              </div>
+            </div>
+          </header>
+          <pre class="note-body${folded ? " folded" : ""}">${escapeHtml(note.content || "(empty)")}</pre>
+          <footer class="note-foot">
+            ${hasFoldBtn ? `<button class="note-btn js-fold-toggle" data-id="${escapeHtml(note.id)}">${folded ? "Unfold" : "Fold"}</button>` : ""}
+          </footer>
+        </article>
+      `;
+    }
+
+    function renderEditCard(note) {
+      return `
+        <article class="note-card" data-id="${escapeHtml(note.id)}">
+          <header class="note-head">
+            <div>
+              <h2 class="note-title">Editing</h2>
+              <div class="note-time">Created: ${escapeHtml(formatTime(note.createdAt))}</div>
+            </div>
+          </header>
+          <div class="note-edit-body">
+            <input id="editTitleInput" class="note-input" type="text" value="${escapeHtml(note.title)}">
+            <textarea id="editContentInput" class="note-textarea">${escapeHtml(note.content)}</textarea>
+            <div class="note-edit-actions">
+              <button id="cancelEditBtn" class="note-btn">Cancel</button>
+              <button id="saveEditBtn" class="note-btn primary" data-id="${escapeHtml(note.id)}">Save</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function getVisibleNotes() {
+      return state.notes.slice(0, state.visibleCount);
+    }
+
+    function render() {
+      const root = document.getElementById("noteList");
+      const visible = getVisibleNotes();
+      let html = renderNewCard();
+
+      if (!visible.length) {
+        html += '<div class="empty">No existing notes yet.</div>';
+      } else {
+        html += visible.map((note) => {
+          if (state.editingId === note.id) return renderEditCard(note);
+          return renderReadOnlyCard(note);
+        }).join("");
+      }
+
+      root.innerHTML = html;
+      bindEvents();
+
+      const showMoreBtn = document.getElementById("showMoreBtn");
+      const hasMore = state.visibleCount < state.notes.length;
+      showMoreBtn.style.display = hasMore ? "inline-flex" : "none";
+    }
+
+    function bindDraftEvents() {
+      const titleInput = document.getElementById("newTitleInput");
+      const contentInput = document.getElementById("newContentInput");
+      const saveBtn = document.getElementById("saveNewBtn");
+      const clearBtn = document.getElementById("clearDraftBtn");
+
+      titleInput.addEventListener("input", () => {
+        state.draft.title = titleInput.value;
+        writeDraft();
+      });
+
+      contentInput.addEventListener("input", () => {
+        state.draft.content = contentInput.value;
+        writeDraft();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        clearDraft();
+        render();
+      });
+
+      saveBtn.addEventListener("click", async () => {
+        const title = state.draft.title.trim();
+        const content = state.draft.content;
+        if (!title && !content.trim()) return;
+
+        const now = Date.now();
+        const id = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
+        await JsonVStorage.savePane(id, {
+          title: title || "Untitled",
+          content,
+          hlMode: "",
+          minimized: false,
+          wordWrap: true,
+          createdAt: now,
+          updatedAt: now,
+          height: DEFAULT_HEIGHT,
+          width: DEFAULT_WIDTH,
+          x: 40,
+          y: 40,
+          zIndex: 1,
+        });
+
+        clearDraft();
+        state.visibleCount += 1;
+        await loadNotes();
+        render();
+      });
+    }
+
+    function closeMenu() {
+      state.openMenuId = "";
+    }
+
+    async function handleEditSave(noteId) {
+      const note = state.notes.find((item) => item.id === noteId);
+      if (!note) return;
+      const titleInput = document.getElementById("editTitleInput");
+      const contentInput = document.getElementById("editContentInput");
+      const now = Date.now();
+      await JsonVStorage.savePane(note.id, {
+        title: titleInput.value.trim() || "Untitled",
+        content: contentInput.value,
+        hlMode: note.hlMode,
+        minimized: note.minimized,
+        wordWrap: note.wordWrap,
+        createdAt: note.createdAt,
+        updatedAt: now,
+        height: note.height,
+        width: note.width,
+        x: note.x,
+        y: note.y,
+        zIndex: note.zIndex,
+      });
+      state.editingId = "";
+      await loadNotes();
+      render();
+    }
+
+    async function handleCopy(noteId) {
+      const note = state.notes.find((item) => item.id === noteId);
+      if (!note) return;
+      const now = Date.now();
+      const newId = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
+      const copiedTitle = note.title.trim() ? `${note.title} (Copy)` : "Untitled (Copy)";
+      await JsonVStorage.savePane(newId, {
+        title: copiedTitle,
+        content: note.content,
+        hlMode: note.hlMode,
+        minimized: note.minimized,
+        wordWrap: note.wordWrap,
+        createdAt: now,
+        updatedAt: now,
+        height: note.height,
+        width: note.width,
+        x: note.x,
+        y: note.y,
+        zIndex: note.zIndex,
+      });
+      state.visibleCount += 1;
+      await loadNotes();
+      render();
+    }
+
+    async function handleDelete(noteId) {
+      const note = state.notes.find((item) => item.id === noteId);
+      if (!note) return;
+      const ok = window.confirm(`Delete note "${note.title || "Untitled"}"?`);
+      if (!ok) return;
+      await JsonVStorage.removePane(noteId);
+      state.expandedIds.delete(noteId);
+      if (state.editingId === noteId) state.editingId = "";
+      await loadNotes();
+      render();
+    }
+
+    function bindCardEvents() {
+      document.querySelectorAll(".js-menu-toggle").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const id = btn.dataset.id || "";
+          state.openMenuId = state.openMenuId === id ? "" : id;
+          render();
+        });
+      });
+
+      document.querySelectorAll(".js-fold-toggle").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.id || "";
+          if (!id) return;
+          if (state.expandedIds.has(id)) {
+            state.expandedIds.delete(id);
+          } else {
+            state.expandedIds.add(id);
+          }
+          render();
+        });
+      });
+
+      document.querySelectorAll(".js-edit").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.id || "";
+          state.editingId = id;
+          closeMenu();
+          render();
+        });
+      });
+
+      document.querySelectorAll(".js-copy").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          closeMenu();
+          render();
+          await handleCopy(btn.dataset.id || "");
+        });
+      });
+
+      document.querySelectorAll(".js-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          closeMenu();
+          render();
+          await handleDelete(btn.dataset.id || "");
+        });
+      });
+
+      const saveEditBtn = document.getElementById("saveEditBtn");
+      if (saveEditBtn) {
+        saveEditBtn.addEventListener("click", async () => {
+          await handleEditSave(saveEditBtn.dataset.id || "");
+        });
+      }
+
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      if (cancelEditBtn) {
+        cancelEditBtn.addEventListener("click", () => {
+          state.editingId = "";
+          render();
+        });
+      }
+    }
+
+    function bindEvents() {
+      bindDraftEvents();
+      bindCardEvents();
+    }
+
+    document.getElementById("showMoreBtn").addEventListener("click", () => {
+      state.visibleCount += SHOW_STEP;
+      render();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!state.openMenuId) return;
+      const inMenu = event.target.closest(".note-menu");
+      const inToggle = event.target.closest(".js-menu-toggle");
+      if (!inMenu && !inToggle) {
+        closeMenu();
+        render();
+      }
+    });
+
+    async function init() {
+      readDraft();
+      await loadNotes();
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
