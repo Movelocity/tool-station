@@ -9,300 +9,90 @@
     * {
       box-sizing: border-box;
       scrollbar-width: thin;
-      scrollbar-color: #475569 #0f172a;
+      scrollbar-color: #475569 #1e293b;
     }
     *::-webkit-scrollbar { width: 8px; height: 8px; }
-    *::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
+    *::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
     *::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
     *::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-family: system-ui, -apple-system, sans-serif;
+    /* Classes emitted by JsonVHighlight.highlightMarkdown */
+    .note-markdown .md-h1, .note-markdown .md-h2, .note-markdown .md-h3,
+    .note-markdown .md-h4, .note-markdown .md-h5, .note-markdown .md-h6 {
+      color: #7dd3fc;
+      font-weight: 700;
     }
-
-    .notes-shell {
-      max-width: 680px;
-      margin: 0 auto;
-      padding: 20px 16px 28px;
-    }
-
-    .notes-title {
-      margin: 0;
-      color: #f1f5f9;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .notes-subtitle {
-      margin: 6px 0 0;
-      color: #94a3b8;
-      font-size: 13px;
-    }
-
-    .note-list {
-      margin-top: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .note-card {
-      width: 560px;
-      max-width: 100%;
-      margin: 0 auto;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      background: #1e293b;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
-      overflow: hidden;
-    }
-
-    .note-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border-bottom: 1px solid #334155;
-      background: rgba(30, 41, 59, .8);
-      position: relative;
-    }
-
-    .note-title {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.3;
-      font-weight: 600;
-      color: #f1f5f9;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .note-time {
-      margin-top: 2px;
-      font-size: 11px;
-      color: #94a3b8;
-      white-space: nowrap;
-    }
-
-    .note-body {
-      margin: 0;
-      padding: 12px;
-      white-space: pre-wrap;
-      overflow-wrap: break-word;
-      line-height: 1.6;
-      font-size: 14px;
-      color: #cbd5e1;
-    }
-
-    .note-body.folded {
-      max-height: calc(1.6em * 10 + 2px);
-      overflow: hidden;
-    }
-
-    .note-foot {
-      border-top: 1px solid #334155;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 40px;
-    }
-
-    .note-btn {
-      border: 1px solid #475569;
-      background: #1e293b;
-      color: #cbd5e1;
-      border-radius: 8px;
-      font-size: 12px;
-      padding: 5px 10px;
-      cursor: pointer;
-      transition: all .15s;
-    }
-    .note-btn:hover:not(:disabled) {
-      border-color: #64748b;
-      color: #f8fafc;
-      background: #334155;
-    }
-    .note-btn:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
-    .note-btn.primary {
-      border-color: #2563eb;
-      background: #2563eb;
-      color: #fff;
-    }
-    .note-btn.primary:hover:not(:disabled) {
-      border-color: #1d4ed8;
-      background: #1d4ed8;
-    }
-    .note-btn.danger {
-      border-color: #7f1d1d;
-      color: #fca5a5;
-    }
-    .note-btn.danger:hover:not(:disabled) {
-      border-color: #991b1b;
-      background: #991b1b;
-      color: #fff;
-    }
-
-    .note-menu-btn {
-      border: 1px solid #475569;
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: transparent;
-      color: #94a3b8;
-      font-size: 16px;
-      line-height: 1;
-      cursor: pointer;
-      transition: all .15s;
-    }
-    .note-menu-btn:hover {
-      border-color: #64748b;
-      color: #f1f5f9;
-      background: #334155;
-    }
-
-    .note-menu {
-      position: absolute;
-      top: 42px;
-      right: 12px;
-      min-width: 110px;
-      display: none;
-      flex-direction: column;
-      gap: 4px;
-      padding: 6px;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      background: #0f172a;
-      box-shadow: 0 12px 24px rgba(0, 0, 0, .35);
-      z-index: 30;
-    }
-
-    .note-menu.open { display: flex; }
-
-    .note-menu-item {
-      width: 100%;
-      text-align: left;
-      border: none;
-      background: transparent;
-      color: #cbd5e1;
+    .note-markdown .md-h1 { font-size: 1.35em; }
+    .note-markdown .md-h2 { font-size: 1.2em; margin-top: 0.35em; }
+    .note-markdown .md-h3 { font-size: 1.08em; }
+    .note-markdown .md-bold { color: #f1f5f9; font-weight: 650; }
+    .note-markdown .md-italic { color: #e2e8f0; font-style: italic; }
+    .note-markdown .md-strike { color: #64748b; text-decoration: line-through; }
+    .note-markdown .md-code {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      color: #fcd34d;
+      background: rgba(255, 255, 255, 0.07);
       border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background .15s, color .15s;
+      padding: 0.15em 0.4em;
     }
-    .note-menu-item:hover {
-      background: #334155;
-      color: #f8fafc;
-    }
-    .note-menu-item.danger {
-      color: #fca5a5;
-    }
-    .note-menu-item.danger:hover {
-      background: #991b1b;
-      color: #fff;
-    }
-
-    .note-input,
-    .note-textarea {
-      width: 100%;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-size: 14px;
-      padding: 8px 10px;
-      outline: none;
-    }
-    .note-input:focus,
-    .note-textarea:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 1px #2563eb;
-    }
-
-    .note-textarea {
-      min-height: 120px;
-      resize: vertical;
-      line-height: 1.55;
-      font-family: inherit;
-    }
-
-    .note-edit-body {
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .note-edit-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .new-card-label {
-      margin: 0;
-      font-size: 11px;
-      color: #38bdf8;
-      letter-spacing: .02em;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-
-    .new-meta {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 2px;
-    }
-
-    .show-more-wrap {
-      margin-top: 18px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .empty {
-      width: 560px;
-      max-width: 100%;
-      margin: 0 auto;
-      border: 1px dashed #334155;
-      border-radius: 12px;
-      background: rgba(30, 41, 59, .45);
-      color: #94a3b8;
-      text-align: center;
-      padding: 26px 14px;
-      font-size: 13px;
-    }
+    .note-markdown .md-link-text { color: #7dd3fc; text-decoration: underline; text-underline-offset: 2px; }
+    .note-markdown .md-url { color: #86efac; }
+    .note-markdown .md-bullet { color: #c4b5fd; }
+    .note-markdown .md-blockquote { color: #94a3b8; border-left: 3px solid #475569; padding-left: 10px; }
+    .note-markdown .md-hr { color: #475569; }
   </style>
 </head>
-<body>
-  <main class="notes-shell">
-    <h1 class="notes-title">Notes Management</h1>
-    <p class="notes-subtitle">Single-column flow, sorted by created time.</p>
-    <section id="noteList" class="note-list"></section>
-    <div class="show-more-wrap">
-      <button id="showMoreBtn" class="note-btn">Show More</button>
+<body class="m-0 min-h-screen bg-slate-900 text-slate-200 antialiased font-sans">
+  <main class="mx-auto max-w-[1180px] px-4 pb-10 pt-6">
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section class="min-w-0">
+        <!-- <h1 class="m-0 text-xl font-semibold tracking-tight text-slate-50">卡片笔记</h1> -->
+        <!-- <p class="mt-2 text-[13px] leading-snug text-slate-400">Newest first. Filter by content on the right panel.</p> -->
+        <section id="noteList" class="mt-4 flex flex-col gap-4"></section>
+        <div id="noteMeta" class="mt-3 text-xs text-slate-500"></div>
+        <div class="mt-5 flex justify-center">
+          <button id="showMoreBtn" type="button" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-[13px] font-medium text-slate-300 transition-colors hover:border-slate-400 hover:bg-slate-700 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-[0.38]">Show more</button>
+        </div>
+      </section>
+      <aside id="sidePanel" class="h-fit rounded-xl border border-slate-700 bg-slate-800/80 p-4 shadow-lg lg:sticky lg:top-6"></aside>
     </div>
   </main>
 
+  <script src="js/card-highlight.js"></script>
   <script src="js/card-storage.js"></script>
   <script>
     const DEFAULT_WIDTH = 560;
     const DEFAULT_HEIGHT = 280;
     const SHOW_STEP = 10;
     const FOLD_LINE_LIMIT = 10;
-    const DRAFT_KEY = "text_cards_notes_draft";
+    const DRAFT_KEY = "text_cards_notes_draft_v2";
+    const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    const CARD =
+      "w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-800/90 shadow-sm transition-shadow hover:shadow-md";
+    const CARD_COMPOSER = `${CARD} border-slate-600`;
+    const BTN_BASE =
+      "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-[13px] font-medium text-slate-300 transition-colors hover:border-slate-400 hover:bg-slate-700 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-[0.38]";
+    const BTN_PRIMARY =
+      "inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-[0.38]";
+    const BTN_GHOST =
+      "inline-flex items-center justify-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-[13px] font-medium text-slate-400 transition-colors hover:bg-sky-500/10 hover:text-sky-400";
+    const BTN_FOLD =
+      "flex items-center gap-1 px-3 text-sm text-slate-400 transition-colors mx-auto hover:text-slate-200 rounded-lg";
+
+    const ICON = {
+      clock: '<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+      search: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>',
+      send: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
+      save: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
+      x: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+      chevronDown: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
+      chevronUp: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>',
+      more: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>',
+      prev: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
+      next: '<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>',
+    };
 
     const state = {
       notes: [],
@@ -310,10 +100,9 @@
       expandedIds: new Set(),
       editingId: "",
       openMenuId: "",
-      draft: {
-        title: "",
-        content: "",
-      },
+      searchQuery: "",
+      monthCursor: startOfMonth(Date.now()),
+      draft: { content: "" },
     };
 
     function escapeHtml(value) {
@@ -325,33 +114,51 @@
         .replaceAll("'", "&#39;");
     }
 
-    function formatTime(ts) {
+    /** @param {number} ts */
+    function formatDateShort(ts) {
       if (!Number.isFinite(ts)) return "-";
-      const date = new Date(ts);
-      if (Number.isNaN(date.getTime())) return "-";
-      return date.toLocaleString();
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return "-";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}/${m}/${day}`;
+    }
+
+    function monthLabel(ts) {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return "-";
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function startOfMonth(ts) {
+      const d = new Date(ts);
+      return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    }
+
+    function addMonth(monthTs, diff) {
+      const d = new Date(monthTs);
+      return new Date(d.getFullYear(), d.getMonth() + diff, 1).getTime();
     }
 
     function readDraft() {
       try {
         const parsed = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
-        state.draft.title = typeof parsed.title === "string" ? parsed.title : "";
-        state.draft.content = typeof parsed.content === "string" ? parsed.content : "";
+        let content = typeof parsed.content === "string" ? parsed.content : "";
+        const oldTitle = typeof parsed.title === "string" ? parsed.title.trim() : "";
+        if (oldTitle && !content) content = oldTitle;
+        else if (oldTitle) content = `${oldTitle}\n\n${content}`;
+        state.draft.content = content;
       } catch {
-        state.draft.title = "";
         state.draft.content = "";
       }
     }
 
     function writeDraft() {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        title: state.draft.title,
-        content: state.draft.content,
-      }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ content: state.draft.content }));
     }
 
     function clearDraft() {
-      state.draft.title = "";
       state.draft.content = "";
       localStorage.removeItem(DRAFT_KEY);
     }
@@ -374,13 +181,26 @@
       };
     }
 
+    function noteMarkdownSource(note) {
+      const title = note.title.trim();
+      const head = title && title !== "Untitled" ? `## ${title}\n\n` : "";
+      return head + (note.content || "");
+    }
+
+    function buildMarkdownHtml(note) {
+      const src = noteMarkdownSource(note);
+      if (!src.trim()) return '<span class="text-sm text-slate-400">(empty)</span>';
+      return JsonVHighlight.highlightMarkdown(src);
+    }
+
     function lineCount(content) {
       if (!content) return 1;
       return content.split("\n").length;
     }
 
-    function isFolded(id, content) {
-      if (lineCount(content) <= FOLD_LINE_LIMIT) return false;
+    function isFolded(id, note) {
+      const src = noteMarkdownSource(note);
+      if (lineCount(src) <= FOLD_LINE_LIMIT) return false;
       return !state.expandedIds.has(id);
     }
 
@@ -393,120 +213,209 @@
       state.notes = all.map(normalizeNote).sort(sortByCreatedDesc);
     }
 
+    function getFilteredNotes() {
+      const q = state.searchQuery.trim().toLowerCase();
+      if (!q) return state.notes;
+      return state.notes.filter((note) => (note.content || "").toLowerCase().includes(q));
+    }
+
+    function getVisibleNotes() {
+      return getFilteredNotes().slice(0, state.visibleCount);
+    }
+
+    function buildCalendarData(monthTs) {
+      const month = new Date(monthTs);
+      const year = month.getFullYear();
+      const monthIndex = month.getMonth();
+      const firstDay = new Date(year, monthIndex, 1).getDay();
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const dayCountMap = new Map();
+
+      for (const note of state.notes) {
+        const d = new Date(note.createdAt);
+        if (d.getFullYear() !== year || d.getMonth() !== monthIndex) continue;
+        const day = d.getDate();
+        dayCountMap.set(day, (dayCountMap.get(day) || 0) + 1);
+      }
+
+      return { firstDay, daysInMonth, dayCountMap };
+    }
+
+    function renderSidePanel() {
+      const side = document.getElementById("sidePanel");
+      const { firstDay, daysInMonth, dayCountMap } = buildCalendarData(state.monthCursor);
+      const now = new Date();
+      const monthDate = new Date(state.monthCursor);
+      const isCurrentMonth = now.getFullYear() === monthDate.getFullYear() && now.getMonth() === monthDate.getMonth();
+      const monthCount = Array.from(dayCountMap.values()).reduce((sum, n) => sum + n, 0);
+
+      let dayCells = "";
+      for (let i = 0; i < firstDay; i += 1) {
+        dayCells += '<div class="h-11 rounded-md border border-transparent"></div>';
+      }
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const count = dayCountMap.get(day) || 0;
+        const isToday = isCurrentMonth && day === now.getDate();
+        dayCells += `
+          <div class="h-11 rounded-md border ${isToday ? "border-blue-500 bg-blue-500/10" : "border-slate-700 bg-slate-900/60"} p-1">
+            <div class="text-[11px] leading-none ${isToday ? "text-blue-300" : "text-slate-300"}">${day}</div>
+            <div class="mt-1 text-[10px] leading-none ${count ? "text-emerald-300" : "text-slate-500"}">${count ? `${count}` : "-"}</div>
+          </div>
+        `;
+      }
+
+      side.innerHTML = `
+        <div class="space-y-5">
+          <section>
+            <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Search content</label>
+            <div class="relative">
+              <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">${ICON.search}</span>
+              <input id="searchInput" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="Search note content..."
+                class="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-8 pr-3 text-sm text-slate-200 outline-none transition-colors focus:border-blue-500">
+            </div>
+          </section>
+          <section>
+            <div class="mb-3 flex items-center justify-between">
+              <h2 class="m-0 text-sm font-semibold text-slate-100">Calendar</h2>
+              <div class="flex items-center gap-1">
+                <button id="monthPrevBtn" type="button" class="rounded-md border border-slate-600 bg-slate-900 p-1.5 text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100">${ICON.prev}</button>
+                <button id="monthNextBtn" type="button" class="rounded-md border border-slate-600 bg-slate-900 p-1.5 text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100">${ICON.next}</button>
+              </div>
+            </div>
+            <div class="mb-2 flex items-end justify-between">
+              <p class="m-0 text-sm text-slate-300">${monthLabel(state.monthCursor)}</p>
+              <p class="m-0 text-xs text-slate-400">Created: <span class="text-emerald-300">${monthCount}</span></p>
+            </div>
+            <div class="grid grid-cols-7 gap-1">
+              ${WEEKDAYS.map((w) => `<div class="text-center text-[10px] text-slate-500">${w}</div>`).join("")}
+              ${dayCells}
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
     function renderNewCard() {
-      const draftTime = state.draft.content.trim() || state.draft.title.trim() ? "Draft cached locally" : "Start a new note";
+      const canSave = !!state.draft.content.trim();
       return `
-        <article class="note-card" data-role="new-note">
-          <header class="note-head">
-            <div>
-              <p class="new-card-label">Create New</p>
-              <h2 class="note-title">New Card</h2>
-              <div class="new-meta">${escapeHtml(draftTime)}</div>
-            </div>
-          </header>
-          <div class="note-edit-body">
-            <input id="newTitleInput" class="note-input" type="text" placeholder="Title (optional)" value="${escapeHtml(state.draft.title)}">
-            <textarea id="newContentInput" class="note-textarea" placeholder="Write your note...">${escapeHtml(state.draft.content)}</textarea>
-            <div class="note-edit-actions">
-              <button id="clearDraftBtn" class="note-btn">Clear Draft</button>
-              <button id="saveNewBtn" class="note-btn primary">Save Note</button>
-            </div>
+        <article class="${CARD_COMPOSER}" data-role="new-note">
+          <div class="px-4 pt-4">
+            <textarea id="newContentInput" class="min-h-[120px] w-full resize-y border-0 bg-transparent p-0 font-inherit text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-500 focus:shadow-none" placeholder="Write something..." rows="5">${escapeHtml(state.draft.content)}</textarea>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2.5 px-4 py-3 pb-3.5">
+            <button type="button" id="clearDraftBtn" class="${BTN_GHOST}">Clear</button>
+            <button type="button" id="saveNewBtn" class="${BTN_PRIMARY}"${canSave ? "" : " disabled"}>${ICON.send}<span>Save</span></button>
           </div>
         </article>
       `;
     }
 
     function renderReadOnlyCard(note) {
-      const folded = isFolded(note.id, note.content);
-      const hasFoldBtn = lineCount(note.content) > FOLD_LINE_LIMIT;
+      const folded = isFolded(note.id, note);
+      const hasFoldBtn = lineCount(noteMarkdownSource(note)) > FOLD_LINE_LIMIT;
       const menuOpen = state.openMenuId === note.id;
-      const title = note.title.trim() || "Untitled";
+      const bodyFold = folded
+        ? " max-h-[calc(1.65em*10+8px)] overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]"
+        : "";
 
       return `
-        <article class="note-card" data-id="${escapeHtml(note.id)}">
-          <header class="note-head">
-            <div>
-              <h2 class="note-title" title="${escapeHtml(title)}">${escapeHtml(title)}</h2>
-              <div class="note-time">Created: ${escapeHtml(formatTime(note.createdAt))}</div>
+        <article class="${CARD}" data-id="${escapeHtml(note.id)}">
+          <header class="relative flex items-start justify-between gap-3 px-4 pb-0 pt-3">
+            <div class="flex min-w-0 items-center gap-2 text-xs text-slate-400">
+              <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.clock}</span>
+              <span class="whitespace-nowrap">${escapeHtml(formatDateShort(note.createdAt))}</span>
             </div>
-            <div>
-              <button class="note-menu-btn js-menu-toggle" data-id="${escapeHtml(note.id)}" title="Card actions">...</button>
-              <div class="note-menu${menuOpen ? " open" : ""}" data-menu-id="${escapeHtml(note.id)}">
-                <button class="note-menu-item js-edit" data-id="${escapeHtml(note.id)}">Edit</button>
-                <button class="note-menu-item js-copy" data-id="${escapeHtml(note.id)}">Copy</button>
-                <button class="note-menu-item danger js-delete" data-id="${escapeHtml(note.id)}">Delete</button>
+            <div class="relative shrink-0">
+              <button type="button" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-50 js-menu-toggle" data-id="${escapeHtml(note.id)}" title="More">${ICON.more}</button>
+              <div class="${menuOpen ? "flex" : "hidden"} absolute right-0 top-full z-30 mt-1 min-w-32 flex-col gap-0.5 rounded-[10px] border border-slate-600 bg-slate-900 p-1.5 shadow-xl" data-menu-id="${escapeHtml(note.id)}">
+                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-edit" data-id="${escapeHtml(note.id)}">Edit</button>
+                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 js-copy" data-id="${escapeHtml(note.id)}">Duplicate</button>
+                <button type="button" class="w-full cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-[13px] text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 js-delete" data-id="${escapeHtml(note.id)}">Delete</button>
               </div>
             </div>
           </header>
-          <pre class="note-body${folded ? " folded" : ""}">${escapeHtml(note.content || "(empty)")}</pre>
-          <footer class="note-foot">
-            ${hasFoldBtn ? `<button class="note-btn js-fold-toggle" data-id="${escapeHtml(note.id)}">${folded ? "Unfold" : "Fold"}</button>` : ""}
-          </footer>
+          <div class="note-markdown m-0 px-4 pb-4 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap break-words${bodyFold}">${buildMarkdownHtml(note)}</div>
+          ${hasFoldBtn ? `
+            <footer class="flex min-h-0 items-center justify-end px-4 pb-1.5">
+              <button type="button" class="${BTN_FOLD} js-fold-toggle" data-id="${escapeHtml(note.id)}">${folded ? ICON.chevronDown : ICON.chevronUp}<span>${folded ? "展开" : "收起"}</span></button>
+            </footer>
+          ` : ""}
         </article>
       `;
     }
 
     function renderEditCard(note) {
       return `
-        <article class="note-card" data-id="${escapeHtml(note.id)}">
-          <header class="note-head">
-            <div>
-              <h2 class="note-title">Editing</h2>
-              <div class="note-time">Created: ${escapeHtml(formatTime(note.createdAt))}</div>
+        <article class="${CARD}" data-id="${escapeHtml(note.id)}">
+          <header class="relative flex items-start justify-between gap-3 px-4 pb-0 pt-3">
+            <div class="flex min-w-0 items-center gap-2 text-xs text-slate-400">
+              <span class="flex shrink-0 items-center text-slate-500" aria-hidden="true">${ICON.clock}</span>
+              <span class="whitespace-nowrap">${escapeHtml(formatDateShort(note.createdAt))}</span>
             </div>
           </header>
-          <div class="note-edit-body">
-            <input id="editTitleInput" class="note-input" type="text" value="${escapeHtml(note.title)}">
-            <textarea id="editContentInput" class="note-textarea">${escapeHtml(note.content)}</textarea>
-            <div class="note-edit-actions">
-              <button id="cancelEditBtn" class="note-btn">Cancel</button>
-              <button id="saveEditBtn" class="note-btn primary" data-id="${escapeHtml(note.id)}">Save</button>
-            </div>
+          <div class="flex flex-col gap-0 px-4 pt-2">
+            <input id="editTitleInput" class="mb-2 w-full border-0 border-b border-slate-700 bg-transparent pb-2 text-[15px] font-semibold text-slate-50 outline-none placeholder:font-medium placeholder:text-slate-500 focus:border-b-blue-600" type="text" placeholder="Title" value="${escapeHtml(note.title)}">
+            <textarea id="editContentInput" class="min-h-[120px] w-full resize-y border-0 bg-transparent p-0 font-inherit text-sm leading-relaxed text-slate-200 outline-none placeholder:text-slate-500 focus:shadow-none" placeholder="Write something..." rows="8">${escapeHtml(note.content)}</textarea>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2.5 px-4 py-3 pb-3.5">
+            <button type="button" id="cancelEditBtn" class="${BTN_BASE}">${ICON.x}<span>Cancel</span></button>
+            <button type="button" id="saveEditBtn" class="${BTN_PRIMARY}" data-id="${escapeHtml(note.id)}">${ICON.save}<span>Save</span></button>
           </div>
         </article>
       `;
     }
 
-    function getVisibleNotes() {
-      return state.notes.slice(0, state.visibleCount);
-    }
-
     function render() {
       const root = document.getElementById("noteList");
       const visible = getVisibleNotes();
+      const filtered = getFilteredNotes();
       let html = renderNewCard();
 
       if (!visible.length) {
-        html += '<div class="empty">No existing notes yet.</div>';
+        html += '<div class="w-full rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-4 py-7 text-center text-[13px] leading-normal text-slate-400">No matched notes.</div>';
       } else {
-        html += visible.map((note) => {
-          if (state.editingId === note.id) return renderEditCard(note);
-          return renderReadOnlyCard(note);
-        }).join("");
+        html += visible.map((note) => state.editingId === note.id ? renderEditCard(note) : renderReadOnlyCard(note)).join("");
       }
 
       root.innerHTML = html;
-      bindEvents();
+
+      const noteMeta = document.getElementById("noteMeta");
+      noteMeta.textContent = `Showing ${visible.length} / ${filtered.length} matched notes (total ${state.notes.length})`;
 
       const showMoreBtn = document.getElementById("showMoreBtn");
-      const hasMore = state.visibleCount < state.notes.length;
-      showMoreBtn.style.display = hasMore ? "inline-flex" : "none";
+      showMoreBtn.classList.toggle("hidden", state.visibleCount >= filtered.length);
+
+      renderSidePanel();
+      bindEvents();
+    }
+
+    function splitDraftTitleBody(raw) {
+      const text = String(raw || "").trim();
+      if (!text) return { title: "Untitled", content: "" };
+      const lines = text.split("\n");
+      if (lines.length === 1) return { title: "Untitled", content: lines[0] };
+      const title = lines[0].slice(0, 200) || "Untitled";
+      const content = lines.slice(1).join("\n");
+      return { title, content };
+    }
+
+    function closeMenu() {
+      state.openMenuId = "";
     }
 
     function bindDraftEvents() {
-      const titleInput = document.getElementById("newTitleInput");
       const contentInput = document.getElementById("newContentInput");
       const saveBtn = document.getElementById("saveNewBtn");
       const clearBtn = document.getElementById("clearDraftBtn");
 
-      titleInput.addEventListener("input", () => {
-        state.draft.title = titleInput.value;
-        writeDraft();
-      });
+      function refreshSaveState() {
+        if (saveBtn) saveBtn.disabled = !state.draft.content.trim();
+      }
 
       contentInput.addEventListener("input", () => {
         state.draft.content = contentInput.value;
         writeDraft();
+        refreshSaveState();
       });
 
       clearBtn.addEventListener("click", () => {
@@ -515,14 +424,13 @@
       });
 
       saveBtn.addEventListener("click", async () => {
-        const title = state.draft.title.trim();
-        const content = state.draft.content;
-        if (!title && !content.trim()) return;
-
+        if (!state.draft.content.trim()) return;
+        const { title, content } = splitDraftTitleBody(state.draft.content);
         const now = Date.now();
         const id = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
+
         await JsonVStorage.savePane(id, {
-          title: title || "Untitled",
+          title,
           content,
           hlMode: "",
           minimized: false,
@@ -541,10 +449,8 @@
         await loadNotes();
         render();
       });
-    }
 
-    function closeMenu() {
-      state.openMenuId = "";
+      refreshSaveState();
     }
 
     async function handleEditSave(noteId) {
@@ -553,6 +459,7 @@
       const titleInput = document.getElementById("editTitleInput");
       const contentInput = document.getElementById("editContentInput");
       const now = Date.now();
+
       await JsonVStorage.savePane(note.id, {
         title: titleInput.value.trim() || "Untitled",
         content: contentInput.value,
@@ -567,6 +474,7 @@
         y: note.y,
         zIndex: note.zIndex,
       });
+
       state.editingId = "";
       await loadNotes();
       render();
@@ -578,6 +486,7 @@
       const now = Date.now();
       const newId = `pane-${now}-${Math.random().toString(36).slice(2, 8)}`;
       const copiedTitle = note.title.trim() ? `${note.title} (Copy)` : "Untitled (Copy)";
+
       await JsonVStorage.savePane(newId, {
         title: copiedTitle,
         content: note.content,
@@ -592,6 +501,7 @@
         y: note.y,
         zIndex: note.zIndex,
       });
+
       state.visibleCount += 1;
       await loadNotes();
       render();
@@ -602,6 +512,7 @@
       if (!note) return;
       const ok = window.confirm(`Delete note "${note.title || "Untitled"}"?`);
       if (!ok) return;
+
       await JsonVStorage.removePane(noteId);
       state.expandedIds.delete(noteId);
       if (state.editingId === noteId) state.editingId = "";
@@ -623,19 +534,15 @@
         btn.addEventListener("click", () => {
           const id = btn.dataset.id || "";
           if (!id) return;
-          if (state.expandedIds.has(id)) {
-            state.expandedIds.delete(id);
-          } else {
-            state.expandedIds.add(id);
-          }
+          if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+          else state.expandedIds.add(id);
           render();
         });
       });
 
       document.querySelectorAll(".js-edit").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const id = btn.dataset.id || "";
-          state.editingId = id;
+          state.editingId = btn.dataset.id || "";
           closeMenu();
           render();
         });
@@ -673,9 +580,38 @@
       }
     }
 
+    function bindSidePanelEvents() {
+      const searchInput = document.getElementById("searchInput");
+      if (searchInput) {
+        searchInput.addEventListener("input", () => {
+          state.searchQuery = searchInput.value;
+          state.visibleCount = SHOW_STEP;
+          render();
+        });
+      }
+
+      const monthPrevBtn = document.getElementById("monthPrevBtn");
+      const monthNextBtn = document.getElementById("monthNextBtn");
+      if (monthPrevBtn) {
+        monthPrevBtn.addEventListener("click", () => {
+          state.monthCursor = addMonth(state.monthCursor, -1);
+          renderSidePanel();
+          bindSidePanelEvents();
+        });
+      }
+      if (monthNextBtn) {
+        monthNextBtn.addEventListener("click", () => {
+          state.monthCursor = addMonth(state.monthCursor, 1);
+          renderSidePanel();
+          bindSidePanelEvents();
+        });
+      }
+    }
+
     function bindEvents() {
       bindDraftEvents();
       bindCardEvents();
+      bindSidePanelEvents();
     }
 
     document.getElementById("showMoreBtn").addEventListener("click", () => {
@@ -685,7 +621,7 @@
 
     document.addEventListener("click", (event) => {
       if (!state.openMenuId) return;
-      const inMenu = event.target.closest(".note-menu");
+      const inMenu = event.target.closest("[data-menu-id]");
       const inToggle = event.target.closest(".js-menu-toggle");
       if (!inMenu && !inToggle) {
         closeMenu();
