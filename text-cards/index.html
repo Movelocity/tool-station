@@ -351,7 +351,6 @@
     const DEFAULT_WIDTH = 560;
     const DEFAULT_HEIGHT = 280;
     const PANE_GAP = 40;
-    const EXPORT_VERSION = 1;
     let paneIdSeq = 0;
     let maximizedPaneId = null;
     // 每个窗格的选区信息  paneId → { textarea, start, end, text }
@@ -756,18 +755,6 @@
       };
     }
 
-    function downloadJson(filename, payload) {
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
     function closeDataFabMenu() {
       document.getElementById('dataFabMenu').classList.remove('open');
     }
@@ -776,41 +763,9 @@
       document.getElementById('dataFabMenu').classList.add('open');
     }
 
-    function parseImportPayload(raw) {
-      if (!raw || typeof raw !== 'object') return null;
-      if (raw.app !== 'text-cards' || raw.version !== EXPORT_VERSION || !Array.isArray(raw.panes)) {
-        return null;
-      }
-      return raw.panes
-        .filter(p => p && typeof p === 'object' && typeof p.title === 'string' && typeof p.content === 'string')
-        .map((p, idx) => ({
-          id: typeof p.id === 'string' && p.id ? p.id : `pane-import-${Date.now()}-${idx}`,
-          title: p.title,
-          content: p.content,
-          createdAt: Number.isFinite(p.createdAt) ? p.createdAt : Date.now(),
-          updatedAt: Number.isFinite(p.updatedAt) ? p.updatedAt : (Number.isFinite(p.createdAt) ? p.createdAt : Date.now()),
-          hlMode: typeof p.hlMode === 'string' ? p.hlMode : '',
-          minimized: !!p.minimized,
-          wordWrap: p.wordWrap !== false,
-          height: Number.isFinite(p.height) ? p.height : DEFAULT_HEIGHT,
-          width: Number.isFinite(p.width) ? p.width : DEFAULT_WIDTH,
-          x: Number.isFinite(p.x) ? p.x : 40 + (idx * 20),
-          y: Number.isFinite(p.y) ? p.y : 40 + (idx * 20),
-          zIndex: Number.isFinite(p.zIndex) ? p.zIndex : idx + 1,
-        }));
-    }
-
     async function exportDataToJson() {
       const panes = Array.from(document.querySelectorAll('.json-pane')).map(buildPaneSnapshot);
-      const payload = {
-        app: 'text-cards',
-        version: EXPORT_VERSION,
-        exportedAt: Date.now(),
-        panes,
-      };
-      const now = new Date();
-      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-      downloadJson(`text-cards-backup-${stamp}.json`, payload);
+      JsonVStorage.exportPanesToBackupFile(panes);
       showToast(`已导出 ${panes.length} 个卡片`, 'success');
     }
 
@@ -835,20 +790,17 @@
     }
 
     async function importDataFromFile(file) {
-      if (!file) return;
-      const text = await file.text();
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        showToast('导入失败：不是有效 JSON', 'error');
-        return;
-      }
-      const panes = parseImportPayload(parsed);
-      if (!panes) {
+      const result = await JsonVStorage.parseBackupFile(file);
+      if (!result.ok) {
+        if (result.error === 'no_file') return;
+        if (result.error === 'invalid_json') {
+          showToast('导入失败：不是有效 JSON', 'error');
+          return;
+        }
         showToast('导入失败：无法识别的 text-cards 数据格式', 'error');
         return;
       }
+      const { panes } = result;
       const ok = window.confirm(`将用导入数据覆盖当前画布（${panes.length} 个卡片），是否继续？`);
       if (!ok) return;
       await replaceAllPanes(panes);
@@ -877,7 +829,7 @@
       const timeMeta = pane.querySelector('.pane-created-at');
       if (timeMeta) {
         const createdAtText = formatTimestamp(parseInt(pane.dataset.createdAt, 10) || now);
-        timeMeta.textContent = `C:${createdAtText} · U:${formatTimestamp(now)}`;
+        timeMeta.textContent = createdAtText;
       }
       const savedHeight = isMaximized
         ? (parseInt(paneContent.style.height, 10) || DEFAULT_HEIGHT)

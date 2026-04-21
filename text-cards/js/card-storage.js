@@ -1,6 +1,7 @@
 /**
  * json-v-storage.js
  * 窗格内容持久化：IndexedDB 存大文本，localStorage 存轻量索引。
+ * 另含 text-cards 备份 JSON 的导出 / 解析（与 DOM 无关）。
  *
  * 索引结构（localStorage key: "jsonv_index"）：
  *   [{ id, title, hlMode, height, width, x, y, zIndex, createdAt, updatedAt }, ...]
@@ -14,6 +15,12 @@ const JsonVStorage = (() => {
   const DB_VERSION = 1;
   const STORE_NAME = 'panes';
   const INDEX_KEY = 'jsonv_index';
+
+  /** 与 index.html 中窗格默认尺寸一致，用于导入缺省字段 */
+  const BACKUP_DEFAULT_WIDTH = 560;
+  const BACKUP_DEFAULT_HEIGHT = 280;
+  const BACKUP_APP = 'text-cards';
+  const EXPORT_VERSION = 1;
 
   let _db = null;
 
@@ -139,5 +146,106 @@ const JsonVStorage = (() => {
     return results;
   }
 
-  return { openDB, savePane, removePane, loadAll, loadIndex, saveIndex };
+  // ── 备份 JSON（导出 / 导入解析）──
+
+  function backupFilenameStamp() {
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  }
+
+  function downloadJson(filename, payload) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * @param {Array<object>} panes 已与 buildPaneSnapshot 结构一致的纯数据
+   */
+  function buildBackupPayload(panes) {
+    return {
+      app: BACKUP_APP,
+      version: EXPORT_VERSION,
+      exportedAt: Date.now(),
+      panes,
+    };
+  }
+
+  /**
+   * @param {Array<object>} panes
+   */
+  function exportPanesToBackupFile(panes) {
+    const payload = buildBackupPayload(panes);
+    downloadJson(`text-cards-backup-${backupFilenameStamp()}.json`, payload);
+  }
+
+  function parseImportPayload(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    if (raw.app !== BACKUP_APP || raw.version !== EXPORT_VERSION || !Array.isArray(raw.panes)) {
+      return null;
+    }
+    return raw.panes
+      .filter(p => p && typeof p === 'object' && typeof p.title === 'string' && typeof p.content === 'string')
+      .map((p, idx) => ({
+        id: typeof p.id === 'string' && p.id ? p.id : `pane-import-${Date.now()}-${idx}`,
+        title: p.title,
+        content: p.content,
+        createdAt: Number.isFinite(p.createdAt) ? p.createdAt : Date.now(),
+        updatedAt: Number.isFinite(p.updatedAt) ? p.updatedAt : (Number.isFinite(p.createdAt) ? p.createdAt : Date.now()),
+        hlMode: typeof p.hlMode === 'string' ? p.hlMode : '',
+        minimized: !!p.minimized,
+        wordWrap: p.wordWrap !== false,
+        height: Number.isFinite(p.height) ? p.height : BACKUP_DEFAULT_HEIGHT,
+        width: Number.isFinite(p.width) ? p.width : BACKUP_DEFAULT_WIDTH,
+        x: Number.isFinite(p.x) ? p.x : 40 + (idx * 20),
+        y: Number.isFinite(p.y) ? p.y : 40 + (idx * 20),
+        zIndex: Number.isFinite(p.zIndex) ? p.zIndex : idx + 1,
+      }));
+  }
+
+  /**
+   * @param {string} text
+   * @returns {{ ok: true, panes: Array<object> } | { ok: false, error: 'invalid_json' | 'invalid_format' }}
+   */
+  function parseBackupFileText(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, error: 'invalid_json' };
+    }
+    const panes = parseImportPayload(parsed);
+    if (!panes) {
+      return { ok: false, error: 'invalid_format' };
+    }
+    return { ok: true, panes };
+  }
+
+  /**
+   * @param {File | null | undefined} file
+   * @returns {Promise<{ ok: true, panes: Array<object> } | { ok: false, error: 'no_file' | 'invalid_json' | 'invalid_format' }>}
+   */
+  async function parseBackupFile(file) {
+    if (!file) return { ok: false, error: 'no_file' };
+    return parseBackupFileText(await file.text());
+  }
+
+  return {
+    openDB,
+    savePane,
+    removePane,
+    loadAll,
+    loadIndex,
+    saveIndex,
+    EXPORT_VERSION,
+    exportPanesToBackupFile,
+    parseBackupFileText,
+    parseBackupFile,
+  };
 })();
