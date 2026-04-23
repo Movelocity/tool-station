@@ -163,7 +163,7 @@
               <input type="radio" name="f-trigger" value="input" class="accent-green-400"> 实时触发
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
-              <input type="radio" name="f-trigger" value="blur" class="accent-green-400"> 编辑完出发
+              <input type="radio" name="f-trigger" value="blur" class="accent-green-400"> 编辑完触发
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
               <input type="radio" name="f-trigger" value="click" class="accent-green-400" checked> 手动触发
@@ -175,11 +175,11 @@
         <div class="rounded-xl border border-slate-700 overflow-hidden">
 
           <!-- Toggle row -->
-          <div class="flex items-start gap-4 p-4">
+          <div id="publish-toggle-row" class="flex items-start gap-4 p-4">
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium text-slate-200">Make public</div>
+              <div class="text-sm font-medium text-slate-200">是否公开</div>
               <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Share this script with anyone on this server. You can unpublish it later — your creator ID is saved in this browser.
+                公开后所有人可见，但只有自己能管理
               </p>
             </div>
             <button id="publish-toggle" role="switch" aria-checked="false"
@@ -200,15 +200,6 @@
             </button>
           </div>
 
-          <!-- Unpublish -->
-          <div id="unpublish-row" style="display:none"
-            class="border-t border-slate-700 px-4 py-3 flex items-center justify-between">
-            <span class="text-xs text-slate-500">You are the author of this public script.</span>
-            <button id="btn-unpublish"
-              class="text-xs text-red-400 hover:text-red-300 transition-colors">
-              Unpublish
-            </button>
-          </div>
         </div>
 
       </div><!-- /modal body -->
@@ -403,8 +394,9 @@
     editingId = id;
     const s = id ? find(id) : null;
     const isOwner = s?.authorId === myId;
+    console.log(`${s?.authorId} === ${myId}`, isOwner, s)
 
-    $('modal-title').textContent = s ? 'Edit Script' : 'New Script';
+    $('modal-title').textContent = !isOwner ? '查看脚本' : s ? '编辑脚本' : '新建脚本';
     $('f-name').value = s?.name || '';
     $('f-code').value = s?.code || '';
 
@@ -415,16 +407,21 @@
 
     // Share URL: only for existing public scripts
     if (s?.public) {
+      if (!isOwner) {
+        $('f-name').disabled = true;
+        $('f-code').readOnly = true;
+        console.log('disabled', $('f-name').disabled, $('f-code').readOnly)
+      }
       $('share-url').value = `${location.href.split('?')[0]}?script=${s.id}`;
       $('share-row').style.display = 'flex';
+      
     } else {
       $('share-row').style.display = 'none';
     }
 
-    // Unpublish: only if owner of a public script
-    $('unpublish-row').style.display = (s?.public && isOwner) ? 'flex' : 'none';
-
     $('modal').style.display = 'flex';
+    $('publish-toggle-row').style.display = isOwner ? 'flex' : 'none';
+    $('modal-save').style.display = s?.public ? (isOwner ? 'block' : 'none') : 'block';
     setTimeout(() => $('f-name').focus(), 40);
   }
 
@@ -456,6 +453,8 @@
 
     const now      = Date.now();
     const existing = editingId ? find(editingId) : null;
+    const wasPublic = Boolean(existing?.public);
+    const canManagePublish = !existing || existing.authorId === myId;
     const script   = {
       id:        editingId || genId(),
       name, code, trigger,
@@ -478,23 +477,14 @@
       } catch {
         setStatus('Saved locally. Publish failed — server may be unavailable.', 4000);
       }
-    }
-  };
-
-  // ── Unpublish ──────────────────────────────────────────────────────────────
-  $('btn-unpublish').onclick = async () => {
-    const s = find(editingId);
-    if (!s || s.authorId !== myId) return;
-    setStatus('Unpublishing…');
-    try {
-      await serverUnpublish(s.id);
-      s.public = false;
-      upsert(s);
-      setStatus('Unpublished.', 2500);
-      closeModal();
-      renderTabs();
-    } catch {
-      setStatus('Failed — server may be unavailable.', 3000);
+    } else if (wasPublic && canManagePublish) {
+      setStatus('Unpublishing…');
+      try {
+        await serverUnpublish(script.id);
+        setStatus('Unpublished.', 2500);
+      } catch {
+        setStatus('Saved locally. Unpublish failed — server may be unavailable.', 4000);
+      }
     }
   };
 

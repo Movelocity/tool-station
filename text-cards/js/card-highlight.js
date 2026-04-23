@@ -232,7 +232,7 @@ const JsonVHighlight = (() => {
       }
 
       // 水平线
-      if (/^\s*([-*_])\s*\1\s*\1/.test(out)) {
+      if (/^\s*([-*_])\s*\1\s*\1\s*$/.test(out)) {
         return `<span class="md-hr">${escapeHtml(out)}</span>`;
       }
 

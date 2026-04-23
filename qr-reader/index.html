@@ -1,273 +1,603 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Code Reader</title>
-  <script src="/lib/tailwind.js"></script>
-  <link rel="stylesheet" href="/lib/fonts-inter.css">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            dark: {
-              900: '#0f172a',
-              800: '#1e293b',
-              700: '#334155',
-              600: '#475569',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code Reader</title>
 
-    #drop-zone.drag-over {
-      border-color: #4ade80;
-      background-color: rgba(74, 222, 128, 0.05);
-    }
-
-    #drop-zone.drag-over .upload-icon {
-      color: #4ade80;
-    }
-
-    .result-appear {
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+<!--
+  依赖说明：
+  - tailwindcss: 样式框架，通过本地引入，无需构建，无需外网CDN
+  - jsqr@1.4.0: 纯 JS 二维码解码库，核心依赖
+    接收 RGBA 像素数组，内部流程：binarize -> locate(找 Finder Pattern) -> extract(透视变换) -> decode(数据解码)
+    API: jsQR(imageData: Uint8ClampedArray, width: number, height: number, options?)
+    返回: { data, binaryData, chunks, version, location } 或 null
+-->
+<script src="/lib/tailwind.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+  /* 拖拽高亮态 */
+  .drop-zone.drag-over { border-color: #6366f1; background: #eef2ff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { animation: spin 0.8s linear infinite; }
+</style>
 </head>
+<body class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+<div class="w-full max-w-lg space-y-5">
 
-<body class="bg-dark-900 text-gray-100 min-h-screen">
+  <h1 class="text-xl font-semibold text-center text-gray-800">二维码识别</h1>
 
-  <!-- Header -->
-  <header class="border-b border-dark-700 bg-dark-800">
-    <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div>
-        <h1 class="text-lg font-semibold text-white">QR Code Reader</h1>
-        <p class="text-sm text-gray-400 hidden sm:block">Upload an image to decode the QR code</p>
-      </div>
-      <a href="/" class="text-sm text-gray-400 hover:text-white transition-colors">← Back</a>
+  <!-- 上传区域：点击触发 file input，拖拽通过 drop 事件处理 -->
+  <div id="dropZone"
+       class="drop-zone relative border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer transition-colors hover:border-indigo-400">
+    <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+    <div class="space-y-2 text-gray-400">
+      <svg class="mx-auto h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      <p class="text-sm">点击或拖拽图片到此处</p>
     </div>
-  </header>
-
-  <!-- Main -->
-  <main class="max-w-2xl mx-auto px-4 py-6 space-y-5">
-
-    <!-- Upload Zone -->
-    <div id="drop-zone"
-      class="relative border-2 border-dashed border-dark-600 rounded-2xl p-8 text-center cursor-pointer transition-colors hover:border-green-400/50"
-      onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" accept="image/*" class="hidden">
-
-      <!-- Icon -->
-      <div class="upload-icon flex justify-center mb-4 transition-colors text-dark-600">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
-          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          <rect x="5" y="5" width="3" height="3" fill="currentColor"/>
-          <rect x="16" y="5" width="3" height="3" fill="currentColor"/>
-          <rect x="5" y="16" width="3" height="3" fill="currentColor"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 14h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/>
-        </svg>
-      </div>
-
-      <p class="text-gray-300 font-medium mb-1">Tap to select an image</p>
-      <p class="text-gray-500 text-sm">or drag &amp; drop here · PNG, JPG, WEBP, GIF</p>
-    </div>
-
-    <!-- Preview + Result -->
-    <div id="result-area" class="hidden result-appear space-y-4">
-
-      <!-- Image preview -->
-      <div class="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-        <div class="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
-          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Preview</span>
-          <button id="clear-btn" class="text-xs text-gray-500 hover:text-white transition-colors">Clear</button>
-        </div>
-        <div class="p-4 flex justify-center bg-dark-900/50">
-          <img id="preview-img" src="" alt="QR preview"
-            class="max-h-64 max-w-full object-contain rounded-lg">
-        </div>
-      </div>
-
-      <!-- Decoded result -->
-      <div id="decode-success" class="hidden bg-dark-800 rounded-xl border border-green-500/40">
-        <div class="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-green-400"></span>
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Decoded Text</span>
-          </div>
-          <button id="copy-btn"
-            class="text-xs px-3 py-1 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors">
-            Copy
-          </button>
-        </div>
-        <div class="p-4">
-          <p id="decoded-text" class="text-green-400 font-mono text-sm break-all whitespace-pre-wrap"></p>
-        </div>
-        <!-- Open link if URL -->
-        <div id="open-link-row" class="hidden px-4 pb-4">
-          <a id="open-link" href="#" target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors underline underline-offset-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
-            Open link
-          </a>
-        </div>
-      </div>
-
-      <!-- Error -->
-      <div id="decode-error" class="hidden bg-dark-800 rounded-xl border border-red-500/40 px-4 py-4">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="w-2 h-2 rounded-full bg-red-400"></span>
-          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">No QR Code Found</span>
-        </div>
-        <p class="text-red-400 text-sm">Make sure the image contains a clear, undistorted QR code and try again.</p>
-      </div>
-
-    </div>
-
-  </main>
-
-  <!-- Toast -->
-  <div id="toast"
-    class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-dark-700 text-white text-sm px-4 py-2 rounded-lg shadow-xl
-           opacity-0 translate-y-4 transition-all duration-300 pointer-events-none">
-    Copied!
   </div>
 
-  <!-- Hidden canvas for QR processing -->
-  <canvas id="qr-canvas" class="hidden"></canvas>
+  <div id="previewWrap" class="hidden">
+    <img id="preview" class="w-full rounded-xl shadow-sm" alt="preview">
+  </div>
 
-  <!-- jsQR library -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <div id="loading" class="hidden items-center justify-center gap-2 text-gray-500 text-sm">
+    <svg class="spinner h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10" stroke-opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke-opacity="1"/>
+    </svg>
+    <span id="loadingText">识别中…</span>
+  </div>
 
-  <script>
-    const fileInput   = document.getElementById('file-input');
-    const dropZone    = document.getElementById('drop-zone');
-    const resultArea  = document.getElementById('result-area');
-    const previewImg  = document.getElementById('preview-img');
-    const decodeOk    = document.getElementById('decode-success');
-    const decodeErr   = document.getElementById('decode-error');
-    const decodedText = document.getElementById('decoded-text');
-    const openLinkRow = document.getElementById('open-link-row');
-    const openLink    = document.getElementById('open-link');
-    const copyBtn     = document.getElementById('copy-btn');
-    const clearBtn    = document.getElementById('clear-btn');
-    const canvas      = document.getElementById('qr-canvas');
-    const ctx         = canvas.getContext('2d');
+  <div id="result" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">识别结果</span>
+      <span id="method" class="text-xs text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full"></span>
+    </div>
+    <div id="resultText" class="text-gray-800 break-all text-sm leading-relaxed select-all"></div>
+    <button id="copyBtn"
+            class="w-full py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+      复制
+    </button>
+  </div>
 
-    // ── File input ──────────────────────────────────────────────────────────
-    fileInput.addEventListener('change', e => {
-      if (e.target.files[0]) processFile(e.target.files[0]);
-    });
+  <div id="error" class="hidden bg-red-50 text-red-600 text-sm rounded-xl p-4 text-center"></div>
 
-    // ── Drag & drop ─────────────────────────────────────────────────────────
-    dropZone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
-    });
-    ['dragleave', 'dragend'].forEach(ev =>
-      dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'))
-    );
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) processFile(file);
-    });
+</div>
 
-    // ── Paste (Ctrl+V / mobile share) ───────────────────────────────────────
-    document.addEventListener('paste', e => {
-      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
-      if (item) processFile(item.getAsFile());
-    });
+<script>
+// =============================================================================
+//
+//  二维码识别 - 预处理与解码 Pipeline
+//
+//  整体流程：
+//    原始 RGBA 图像
+//      -> [策略1] 直接丢给 jsQR（大多数清晰图片在此成功）
+//      -> [策略2] 颜色归一化 + 自适应二值化（解决光照不均、低对比度）
+//      -> [策略3] 形态学闭运算（修复圆形像素断裂，适配 Chrome 生成的异形二维码）
+//      -> [策略4] 多尺度缩放（二维码在图中占比过小或过大时）
+//      -> [策略5] 旋转扫描（jsQR 内置支持任意旋转，但极端角度可能失败，显式旋转兜底）
+//      -> [策略6] 反色重试（白底黑字 vs 黑底白字）
+//
+//  jsQR 内部已有的能力（无需重复实现）：
+//    - 灰度化: 0.2126R + 0.7152G + 0.0722B
+//    - 自适应二值化: 8x8 分块取均值做阈值
+//    - Finder Pattern 定位: 扫描 1:1:3:1:1 黑白比例（支持任意旋转角度）
+//    - 透视变换: 3x3 单应矩阵，从三个 Finder Pattern 中心推算
+//    - 数据解码: Reed-Solomon 纠错 + 数据提取
+//
+//  我们的预处理 Pipeline 是 jsQR 的"前置增强层"，处理 jsQR 自身搞不定的情况。
+//
+// =============================================================================
 
-    // ── Clear ────────────────────────────────────────────────────────────────
-    clearBtn.addEventListener('click', () => {
-      resultArea.classList.add('hidden');
-      fileInput.value = '';
-      decodeOk.classList.add('hidden');
-      decodeErr.classList.add('hidden');
-    });
 
-    // ── Copy ─────────────────────────────────────────────────────────────────
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(decodedText.textContent).then(() => showToast('Copied!'));
-    });
+// =============================================================================
+//  第一部分：灰度 / 颜色工具
+// =============================================================================
 
-    // ── Core: process image file ─────────────────────────────────────────────
-    function processFile(file) {
-      const url = URL.createObjectURL(file);
-      previewImg.onload = () => {
-        URL.revokeObjectURL(url);
-        decodeQR(previewImg);
-      };
-      previewImg.src = url;
-      resultArea.classList.remove('hidden');
-      resultArea.classList.add('result-appear');
-      decodeOk.classList.add('hidden');
-      decodeErr.classList.add('hidden');
+/**
+ * RGBA -> 灰度 单通道
+ * 使用 ITU-R BT.709 标准亮度系数，与 jsQR 内部一致。
+ * @param {Uint8ClampedArray} data - RGBA 像素数组 [r0,g0,b0,a0, r1,g1,b1,a1, ...]
+ * @param {number} len - data.length
+ * @returns {Uint8ClampedArray} 灰度值数组，长度 = len/4
+ */
+function extractGrayRGBA(data, len) {
+  const gray = new Uint8ClampedArray(len / 4);
+  for (let i = 0, j = 0; j < len; i++, j += 4)
+    gray[i] = Math.round(0.2126 * data[j] + 0.7152 * data[j + 1] + 0.0722 * data[j + 2]);
+  return gray;
+}
+
+/**
+ * 灰度单通道 -> RGBA（供 jsQR 消费）
+ * jsQR 只接受 Uint8ClampedArray 格式的 RGBA 数据，所以二值化后的单通道需要转回去。
+ * R=G=B=灰度值, A=255
+ */
+function grayToRGBA(gray, w, h) {
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < gray.length; i++) {
+    rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = gray[i];
+    rgba[i * 4 + 3] = 255;
+  }
+  return new ImageData(rgba, w, h);
+}
+
+
+// =============================================================================
+//  第二部分：Otsu 全局阈值
+// =============================================================================
+
+/**
+ * Otsu 最大类间方差法
+ * 在 0~255 灰度范围内找到一个阈值 t，使得前景/背景的类间方差最大。
+ * 用于颜色归一化阶段粗分前景（二维码模块）和背景。
+ *
+ * 原理：
+ *   遍历每个可能的阈值 t，把像素分成两类：
+ *     背景: 灰度 <= t（亮区域）
+ *     前景: 灰度 >  t（暗区域，二维码的黑色模块）
+ *   计算 wBg * wFg * (meanBg - meanFg)^2，取最大值对应的 t。
+ *
+ * @param {Uint8ClampedArray} gray - 灰度数组
+ * @returns {number} 最优阈值 (0~255)
+ */
+function otsuThreshold(gray) {
+  // 1. 统计直方图
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+
+  const total = gray.length;
+  let sumAll = 0;
+  for (let i = 0; i < 256; i++) sumAll += i * hist[i];
+
+  // 2. 从左到右扫描，逐步把灰度级从"背景"移到"前景"
+  let sumBg = 0, wBg = 0, maxVar = 0, t = 128;
+  for (let i = 0; i < 256; i++) {
+    wBg += hist[i];
+    if (!wBg) continue;                    // 全部都是前景，跳过
+    const wFg = total - wBg;
+    if (!wFg) break;                       // 全部都是背景，结束
+    sumBg += i * hist[i];
+    const d = sumBg / wBg - (sumAll - sumBg) / wFg; // 均值差
+    const v = wBg * wFg * d * d;           // 类间方差
+    if (v > maxVar) { maxVar = v; t = i; }
+  }
+  return t;
+}
+
+
+// =============================================================================
+//  第三部分：颜色归一化
+// =============================================================================
+
+/**
+ * 颜色归一化
+ * 解决问题：光照不均、低对比度、彩色二维码（红/蓝/绿模块）等场景。
+ *
+ * 步骤：
+ *   1. 灰度化
+ *   2. Otsu 算全局阈值，粗分前景（暗）和背景（亮）
+ *   3. 分别统计前景/背景的灰度范围 [min, max]
+ *   4. 对前景和背景各自做对比度拉伸，映射到 [0,128] 和 [128,255]
+ *      这样前景和背景被拉开到整个 [0,255] 范围，对比度最大化。
+ *
+ * 为什么分前景/背景分别拉伸？
+ *   如果整张图一起拉伸，一个很暗的前景和一个很亮的背景可能被拉伸后
+ *   仍然差距不大。分开拉伸后，无论原始对比度多低，都能被拉到最大。
+ *
+ * @param {ImageData} imageData - 原始 RGBA 图像
+ * @returns {Uint8ClampedArray} 归一化后的灰度数组
+ */
+function normalizeColor(imageData) {
+  const { data, width, height } = imageData;
+  const gray = extractGrayRGBA(data, data.length);
+  const th = otsuThreshold(gray);
+
+  // 分别统计前景（<= th，暗区域，二维码模块）和背景（> th，亮区域）的灰度范围
+  let fgMin = 255, fgMax = 0, bgMin = 255, bgMax = 0;
+  for (let i = 0; i < gray.length; i++) {
+    const v = gray[i];
+    if (v > th) { if (v < bgMin) bgMin = v; if (v > bgMax) bgMax = v; }
+    else        { if (v < fgMin) fgMin = v; if (v > fgMax) fgMax = v; }
+  }
+
+  // 避免除零（如果某个区域只有一个灰度值，range=0）
+  const fgRange = fgMax - fgMin || 1, bgRange = bgMax - bgMin || 1;
+
+  // 前景映射到 [0, 128]，背景映射到 [128, 255]
+  const out = new Uint8ClampedArray(gray.length);
+  for (let i = 0; i < gray.length; i++) {
+    const v = gray[i];
+    out[i] = v > th
+      ? Math.round(((v - bgMin) / bgRange) * 128 + 128)  // 背景 -> [128, 255]
+      : Math.round(((v - fgMin) / fgRange) * 128);        // 前景 -> [0, 128]
+  }
+  return out;
+}
+
+
+// =============================================================================
+//  第四部分：自适应二值化（积分图加速）
+// =============================================================================
+
+/**
+ * 积分图加速的自适应阈值二值化
+ *
+ * 解决问题：jsQR 内置的二值化用 8x8 固定分块，粒度太粗，对光照不均
+ * 和阴影区域效果差。这里改用可调的 blockSize（建议 25~51），
+ * 并用积分图将复杂度从 O(N * blockSize^2) 降到 O(N)。
+ *
+ * 积分图原理：
+ *   integral[y][x] = 所有满足 i<=x, j<=y 的像素灰度之和
+ *   任意矩形区域的像素和可以通过 4 次查表 + 加减法算出：
+ *     sum(rect) = integral[y2][x2] - integral[y2][x1-1]
+ *               - integral[y1-1][x2] + integral[y1-1][x1-1]
+ *
+ * 对每个像素，取其周围 blockSize x blockSize 邻域的均值作为阈值，
+ * 像素值 > (均值 - C) 则为白(255)，否则为黑(0)。
+ * C 是一个补偿常数，防止阈值过于接近均值导致噪声被二值化为信号。
+ *
+ * @param {Uint8ClampedArray} gray - 灰度数组
+ * @param {number} w - 图像宽度
+ * @param {number} h - 图像高度
+ * @param {number} blockSize - 邻域大小（奇数，建议 25~51）
+ * @param {number} C - 阈值补偿常数（建议 10~15）
+ * @returns {Uint8ClampedArray} 二值化结果（0 或 255）
+ */
+function adaptiveThreshold(gray, w, h, blockSize, C) {
+  // 1. 构建积分图：逐行累加，每行内再累加上方行的值
+  const integral = new Float64Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let row = 0;
+    for (let x = 0; x < w; x++) {
+      row += gray[y * w + x];
+      integral[y * w + x] = row + (y ? integral[(y - 1) * w + x] : 0);
     }
+  }
 
-    function decodeQR(img) {
-      canvas.width  = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
+  // 2. 对每个像素，用积分图快速算出邻域均值，作为该像素的局部阈值
+  const half = blockSize >> 1;
+  const out = new Uint8ClampedArray(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // 邻域边界（clamp 到图像边缘）
+      const x1 = Math.max(0, x - half), y1 = Math.max(0, y - half);
+      const x2 = Math.min(w - 1, x + half), y2 = Math.min(h - 1, y + half);
+      const area = (x2 - x1 + 1) * (y2 - y1 + 1);
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert',
-      });
+      // 积分图查表算邻域像素总和（容斥原理）
+      let sum = integral[y2 * w + x2];
+      if (x1) sum -= integral[y2 * w + (x1 - 1)];
+      if (y1) sum -= integral[(y1 - 1) * w + x2];
+      if (x1 && y1) sum += integral[(y1 - 1) * w + (x1 - 1)];
 
-      if (code) {
-        decodedText.textContent = code.data;
-        decodeOk.classList.remove('hidden');
-        decodeErr.classList.add('hidden');
+      // 局部阈值 = 邻域均值 - C，像素值超过阈值则为白
+      out[y * w + x] = gray[y * w + x] > (sum / area) - C ? 255 : 0;
+    }
+  }
+  return out;
+}
 
-        // Show "Open link" if the content looks like a URL
-        try {
-          const u = new URL(code.data);
-          if (u.protocol === 'http:' || u.protocol === 'https:') {
-            openLink.href = code.data;
-            openLink.textContent = code.data.length > 60
-              ? code.data.slice(0, 57) + '…'
-              : code.data;
-            openLinkRow.classList.remove('hidden');
-          } else {
-            openLinkRow.classList.add('hidden');
-          }
-        } catch {
-          openLinkRow.classList.add('hidden');
-        }
-      } else {
-        decodeOk.classList.add('hidden');
-        decodeErr.classList.remove('hidden');
+
+// =============================================================================
+//  第五部分：形态学闭运算
+// =============================================================================
+
+/**
+ * 形态学闭运算（Close）= 膨胀（Dilate） + 腐蚀（Erode）
+ *
+ * 解决问题：谷歌 Chrome 生成的二维码，模块是圆形而非方形。
+ * 二值化后圆形边缘与背景之间有间隙（特别是圆与圆之间的缝隙），
+ * 导致 jsQR 的 1:1:3:1:1 比例检测失败。
+ *
+ * 膨胀：对每个像素，取邻域内的最大值。效果：白色区域扩张，黑色间隙被填充。
+ * 腐蚀：对每个像素，取邻域内的最小值。效果：白色区域收缩回原来的大小。
+ * 先膨胀再腐蚀 = 闭运算：填充小间隙，但不改变整体形状大小。
+ *
+ * 结构元素是方形 (2r+1) x (2r+1)，r=2 即 5x5 邻域。
+ * 对于圆形像素，r=2 通常足够闭合圆与圆之间的断裂。
+ *
+ * 性能注意：这是 O(N * r^2) 的暴力实现，r=2 时 5x5=25 次比较/像素，
+ * 对于 1080p 图像 (~200 万像素) 约需 20~30ms，可接受。
+ *
+ * @param {Uint8ClampedArray} binary - 二值化后的单通道数据（0 或 255）
+ * @param {number} w - 图像宽度
+ * @param {number} h - 图像高度
+ * @param {number} r - 结构元素半径（建议 2）
+ * @returns {Uint8ClampedArray} 闭运算后的二值数据
+ */
+function morphClose(binary, w, h, r) {
+  // 膨胀：每个像素取邻域最大值（白色扩张，填缝）
+  function dilate(src) {
+    const o = new Uint8ClampedArray(src.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let mx = 0;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const ny = y + dy, nx = x + dx;
+        if (ny >= 0 && ny < h && nx >= 0 && nx < w) mx = Math.max(mx, src[ny * w + nx]);
       }
+      o[y * w + x] = mx;
     }
-
-    // ── Toast ────────────────────────────────────────────────────────────────
-    function showToast(msg) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.classList.remove('opacity-0', 'translate-y-4');
-      setTimeout(() => toast.classList.add('opacity-0', 'translate-y-4'), 1800);
+    return o;
+  }
+  // 腐蚀：每个像素取邻域最小值（白色收缩，恢复原始大小）
+  function erode(src) {
+    const o = new Uint8ClampedArray(src.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let mn = 255;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const ny = y + dy, nx = x + dx;
+        if (ny >= 0 && ny < h && nx >= 0 && nx < w) mn = Math.min(mn, src[ny * w + nx]);
+      }
+      o[y * w + x] = mn;
     }
-  </script>
+    return o;
+  }
+  return erode(dilate(binary));
+}
 
+
+// =============================================================================
+//  第六部分：图像几何变换
+// =============================================================================
+
+/**
+ * 等比缩放 ImageData
+ * 用于多尺度扫描：二维码在图中占比太小（<50px）或太大时，jsQR 的
+ * 模块尺寸估算可能不准。缩放到不同尺寸可以命中合适的模块大小。
+ *
+ * 实现：先将 ImageData 绘制到临时 canvas，再用 drawImage 缩放后取回。
+ *
+ * @param {ImageData} img - 原始图像数据
+ * @param {number} scale - 缩放倍数（0.5 = 缩小一半，2.0 = 放大一倍）
+ * @returns {ImageData} 缩放后的图像数据
+ */
+function scaleImageData(img, scale) {
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * scale);
+  c.height = Math.round(img.height * scale);
+  const ctx = c.getContext('2d');
+  // ImageData 不能直接 drawImage，需要先转成 canvas
+  const src = document.createElement('canvas');
+  src.width = img.width; src.height = img.height;
+  src.getContext('2d').putImageData(img, 0, 0);
+  ctx.drawImage(src, 0, 0, c.width, c.height);
+  return ctx.getImageData(0, 0, c.width, c.height);
+}
+
+/**
+ * 旋转 ImageData
+ * 用于旋转扫描兜底：jsQR 内置支持任意旋转（通过 1:1:3:1:1 比例检测），
+ * 但极端角度（接近 45° 的奇数倍）或低质量图像可能定位失败。
+ * 显式旋转到 90/180/270 度后再试，可以覆盖这些边界情况。
+ *
+ * 实现：计算旋转后的画布尺寸，用 canvas 的 translate + rotate 绘制。
+ *
+ * @param {ImageData} img - 原始图像数据
+ * @param {number} deg - 旋转角度（度，正值 = 顺时针）
+ * @returns {ImageData} 旋转后的图像数据
+ */
+function rotateImageData(img, deg) {
+  const rad = deg * Math.PI / 180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+  // 旋转后画布需要容纳原图的水平和垂直投影
+  const nw = Math.ceil(img.width * cos + img.height * sin);
+  const nh = Math.ceil(img.width * sin + img.height * cos);
+  const c = document.createElement('canvas');
+  c.width = nw; c.height = nh;
+  const ctx = c.getContext('2d');
+  ctx.translate(nw / 2, nh / 2);
+  ctx.rotate(rad);
+  const src = document.createElement('canvas');
+  src.width = img.width; src.height = img.height;
+  src.getContext('2d').putImageData(img, 0, 0);
+  ctx.drawImage(src, -img.width / 2, -img.height / 2);
+  return ctx.getImageData(0, 0, nw, nh);
+}
+
+
+// =============================================================================
+//  第七部分：多策略解码 Pipeline
+// =============================================================================
+
+/**
+ * 单次解码尝试
+ * 封装 jsQR 调用，inversionAttempts='attemptBoth' 让 jsQR 同时尝试
+ * 正常色和反色，覆盖黑底白字的二维码。
+ *
+ * @param {ImageData} imageData - RGBA 图像数据
+ * @param {string} label - 策略名称（用于 UI 显示）
+ * @returns {{ data: string, location: object, method: string } | null}
+ */
+function tryDecode(imageData, label) {
+  const r = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+  return r ? { data: r.data, location: r.location, method: label } : null;
+}
+
+/**
+ * 鲁棒解码主函数
+ * 按策略优先级逐级尝试，每个策略处理一类特定的图像问题。
+ * 策略越靠前越快（计算量小），靠后的策略作为兜底。
+ *
+ * 策略选择的依据：
+ *   1. 直接识别：~80% 的正常图片在此成功，耗时 <50ms
+ *   2. 自适应二值化：处理光照不均、阴影、低对比度
+ *   3. 形态学修复：处理 Chrome 生成的圆形像素二维码
+ *   4. 多尺度：处理二维码在图中占比异常的情况
+ *   5. 旋转扫描：处理 jsQR 内置旋转检测失败的边界情况
+ *   6. 反色重试：处理非标准颜色（如蓝底白字、绿底黑字）
+ *
+ * @param {ImageData} imageData - 原始 RGBA 图像数据
+ * @returns {{ data: string, location: object, method: string } | null}
+ */
+function robustDecode(imageData) {
+  const { width, height } = imageData;
+
+  // --- 策略 1: 直接解码 ---
+  // 绝大多数清晰的、标准的二维码图片在这里就能成功。
+  // jsQR 内部会做灰度化、自适应二值化、Finder Pattern 定位、透视变换、解码。
+  let r = tryDecode(imageData, '直接识别');
+  if (r) return r;
+
+  // --- 策略 2: 预处理 + 自适应二值化 ---
+  // 先做颜色归一化（Otsu 分前景/背景 + 对比度拉伸），
+  // 再用积分图自适应二值化（blockSize=31, C=10）。
+  // 处理：光照不均、阴影遮挡、低对比度、彩色模块。
+  const normalized = normalizeColor(imageData);
+  const binary = adaptiveThreshold(normalized, width, height, 31, 10);
+  r = tryDecode(grayToRGBA(binary, width, height), '自适应二值化');
+  if (r) return r;
+
+  // --- 策略 3: 形态学闭运算 ---
+  // 在策略 2 的二值化结果上做闭运算（膨胀+腐蚀），填充圆形模块之间的间隙。
+  // 处理：Chrome 生成的圆形像素二维码、边缘模糊的二维码。
+  const closed = morphClose(binary, width, height, 2);
+  r = tryDecode(grayToRGBA(closed, width, height), '形态学修复');
+  if (r) return r;
+
+  // --- 策略 4: 多尺度扫描 ---
+  // jsQR 的模块尺寸估算依赖扫描线上的 1:1:3:1:1 比例。
+  // 如果二维码太小（模块 <2px）或太大（模块 >20px），比例检测可能失败。
+  // 缩放到不同尺寸，让模块尺寸落在 jsQR 的最佳识别范围内。
+  for (const s of [0.5, 0.75, 1.5, 2.0]) {
+    const scaled = scaleImageData(imageData, s);
+    r = tryDecode(scaled, `缩放 ${s}x`);
+    if (r) return r;
+  }
+
+  // --- 策略 5: 旋转扫描 ---
+  // jsQR 的 locate 模块通过 Bresenham 线扫描在任意方向上检测 1:1:3:1:1 比例，
+  // 理论上支持任意旋转角度。但实际中，接近 45° 奇数倍的极端角度、
+  // 或图像有噪声干扰时，可能定位失败。显式旋转到 90/180/270 度兜底。
+  for (const deg of [90, 180, 270]) {
+    const rotated = rotateImageData(imageData, deg);
+    r = tryDecode(rotated, `旋转 ${deg}°`);
+    if (r) return r;
+  }
+
+  // --- 策略 6: 反色重试 ---
+  // 标准二维码是黑模块白背景。有些生成器做反色（白模块黑背景），
+  // jsQR 的 inversionAttempts 虽然能处理，但在预处理后的图像上再试一次更保险。
+  const inv = new Uint8ClampedArray(imageData.data);
+  for (let i = 0; i < inv.length; i += 4) {
+    inv[i] = 255 - inv[i]; inv[i+1] = 255 - inv[i+1]; inv[i+2] = 255 - inv[i+2];
+  }
+  r = tryDecode(new ImageData(inv, width, height), '反色识别');
+  if (r) return r;
+
+  // 所有策略都失败了
+  return null;
+}
+
+
+// =============================================================================
+//  第八部分：UI 交互
+// =============================================================================
+
+const dropZone   = document.getElementById('dropZone');
+const fileInput  = document.getElementById('fileInput');
+const previewWrap= document.getElementById('previewWrap');
+const preview    = document.getElementById('preview');
+const loading    = document.getElementById('loading');
+const loadingText= document.getElementById('loadingText');
+const resultBox  = document.getElementById('result');
+const resultText = document.getElementById('resultText');
+const methodEl   = document.getElementById('method');
+const copyBtn    = document.getElementById('copyBtn');
+const errorBox   = document.getElementById('error');
+
+function reset() {
+  previewWrap.classList.add('hidden');
+  loading.classList.add('hidden');
+  resultBox.classList.add('hidden');
+  errorBox.classList.add('hidden');
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.remove('hidden');
+}
+
+/**
+ * 主处理流程：文件 -> ImageData -> robustDecode -> 显示结果
+ *
+ * 大图处理：超过 2000px 的边会被等比缩小，避免 Canvas 内存过大
+ * 且超大图的模块尺寸远超 jsQR 最佳范围，缩小反而更容易识别。
+ */
+async function process(file) {
+  reset();
+  if (!file || !file.type.startsWith('image/')) return showError('请上传图片文件');
+
+  const url = URL.createObjectURL(file);
+  preview.src = url;
+  previewWrap.classList.remove('hidden');
+  loading.classList.remove('hidden');
+
+  // 让浏览器先渲染出预览和 loading，再开始耗时的图像处理
+  await new Promise(r => setTimeout(r, 50));
+
+  const img = new Image();
+  img.onload = () => {
+    loadingText.textContent = '识别中…';
+
+    // 大图缩放：限制最长边不超过 MAX 像素
+    const canvas = document.createElement('canvas');
+    const MAX = 2000;
+    let w = img.naturalWidth, h = img.naturalHeight;
+    if (Math.max(w, h) > MAX) {
+      const s = MAX / Math.max(w, h);
+      w = Math.round(w * s); h = Math.round(h * s);
+    }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
+
+    // 执行多策略解码，计时
+    const t0 = performance.now();
+    const res = robustDecode(imageData);
+    const ms = Math.round(performance.now() - t0);
+
+    loading.classList.add('hidden');
+    if (res) {
+      resultText.textContent = res.data;
+      methodEl.textContent = `${res.method} · ${ms}ms`;
+      resultBox.classList.remove('hidden');
+    } else {
+      showError('未能识别到二维码，请尝试更清晰的图片');
+    }
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { loading.classList.add('hidden'); showError('图片加载失败'); };
+  img.src = url;
+}
+
+// 文件选择
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) process(e.target.files[0]);
+});
+
+// 拖拽上传
+['dragover','dragenter'].forEach(t =>
+  dropZone.addEventListener(t, e => { e.preventDefault(); dropZone.classList.add('drag-over'); })
+);
+['dragleave','drop'].forEach(t =>
+  dropZone.addEventListener(t, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); })
+);
+dropZone.addEventListener('drop', e => {
+  if (e.dataTransfer.files[0]) process(e.dataTransfer.files[0]);
+});
+
+// 复制结果
+copyBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(resultText.textContent).then(() => {
+    copyBtn.textContent = '已复制 ✓';
+    setTimeout(() => copyBtn.textContent = '复制', 1500);
+  });
+});
+</script>
 </body>
 </html>

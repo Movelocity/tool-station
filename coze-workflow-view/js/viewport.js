@@ -6,7 +6,7 @@ const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 3.0;
 const MOUSE_ZOOM_FACTOR      = 1.12;   // fixed factor per wheel click (mouse)
 const TOUCHPAD_ZOOM_SENS     = 0.008;  // exp(-deltaY * this) per pinch event
-const TOUCHPAD_ZOOM_MAX_STEP = 0.08;   // max log-factor per pinch event (~8%)
+const TOUCHPAD_ZOOM_MAX_STEP = 0.12;   // max log-factor per pinch event (~8%)
 
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 function toggleInputMode() {

@@ -32,6 +32,9 @@ function processWorkflow(raw, fileName) {
   document.getElementById('file-name').textContent = fileName || '';
 
   renderCanvas();
+  setTimeout(() => {
+    autoLayout();
+  }, 100);
 }
 
 function populateMeta(meta, exportedAt, canvas) {
